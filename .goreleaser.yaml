@@ -94,7 +94,7 @@ release:
 dockers:
   - image_templates:
       - "ghcr.io/ai-hermes/chatlog:{{ .Tag }}-amd64"
-      - "ai-hermes/chatlog:{{ .Tag }}-amd64"
+      # - "ai-hermes/chatlog:{{ .Tag }}-amd64"
     dockerfile: Dockerfile
     extra_files:
       - script/docker-entrypoint.sh

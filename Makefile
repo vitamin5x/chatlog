@@ -19,7 +19,7 @@ UPX_PLATFORMS := \
 	linux/arm64 \
 	windows/amd64
 
-.PHONY: all clean lint tidy test build crossbuild upx
+.PHONY: all clean lint tidy test build crossbuild upx tag tag-push tag-and-push tag-push-all tag-delete tag-auto tag-auto-push
 
 all: clean lint tidy test build
 
@@ -58,3 +58,53 @@ crossbuild: clean
 			echo "⚙️ Compressing binary $$output_name..." && upx --best $$output_name; \
 		fi; \
 	done
+
+REMOTE ?= origin
+TAG_PREFIX ?= v
+TAG_LEVEL ?= patch
+
+tag:
+	@[ -n "$(TAG)" ] || (echo "TAG is required: make tag TAG=v1.0.0 [MSG=...]" >&2; exit 1)
+	@echo "🏷️ Creating annotated tag $(TAG)..."
+	git tag -a "$(TAG)" -m "$(if $(MSG),$(MSG),release $(TAG))"
+
+tag-push:
+	@[ -n "$(TAG)" ] || (echo "TAG is required: make tag-push TAG=v1.0.0" >&2; exit 1)
+	@echo "🚀 Pushing tag $(TAG) to $(REMOTE)..."
+	git push "$(REMOTE)" "$(TAG)"
+
+tag-and-push: tag tag-push
+
+tag-push-all:
+	@echo "🚀 Pushing all tags to $(REMOTE)..."
+	git push "$(REMOTE)" --tags
+
+tag-delete:
+	@[ -n "$(TAG)" ] || (echo "TAG is required: make tag-delete TAG=v1.0.0" >&2; exit 1)
+	@echo "🗑️ Deleting tag $(TAG) locally and on $(REMOTE)..."
+	git tag -d "$(TAG)"
+	git push "$(REMOTE)" ":refs/tags/$(TAG)"
+
+tag-auto:
+	@latest=$$(git tag --list '$(TAG_PREFIX)[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n 1); \
+	[ -n "$$latest" ] || latest='$(TAG_PREFIX)0.0.0'; \
+	ver=$${latest#'$(TAG_PREFIX)'}; \
+	set -- $$(echo "$$ver" | tr '.' ' '); \
+	major=$$1; minor=$$2; patch=$$3; \
+	case "$(TAG_LEVEL)" in \
+		major) major=$$((major+1)); minor=0; patch=0 ;; \
+		minor) minor=$$((minor+1)); patch=0 ;; \
+		patch|'') patch=$$((patch+1)) ;; \
+		*) echo "TAG_LEVEL must be major|minor|patch (got $(TAG_LEVEL))" >&2; exit 1 ;; \
+	esac; \
+	new='$(TAG_PREFIX)'"$$major.$$minor.$$patch"; \
+	echo "🏷️ Creating annotated tag $$new (from $$latest, level=$(TAG_LEVEL))..."; \
+	git tag -a "$$new" -m "$(if $(MSG),$(MSG),release $$new)"; \
+	echo "TAG=$$new"
+
+tag-auto-push:
+	@tag_line=$$(make --no-print-directory tag-auto TAG_LEVEL='$(TAG_LEVEL)' TAG_PREFIX='$(TAG_PREFIX)' MSG='$(MSG)' | tail -n 1); \
+	new=$${tag_line#TAG=}; \
+	[ -n "$$new" ] || (echo "failed to detect TAG from tag-auto output" >&2; exit 1); \
+	echo "🚀 Pushing tag $$new to $(REMOTE)..."; \
+	git push "$(REMOTE)" "$$new"
