@@ -4,9 +4,16 @@ on:
   pull_request:
     branches:
       - main
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
 
 permissions:
   contents: read
+  contents: write
 
 jobs:
   crossbuild:
@@ -73,3 +80,28 @@ jobs:
             bin/chatlog_${{ matrix.goos }}_${{ matrix.goarch }}*.exe
           if-no-files-found: error
           retention-days: 7
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: crossbuild
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: all-builds
+
+      - name: Collect all release assets
+        run: |
+          mkdir -p release-assets
+          find all-builds -type f \( -name "chatlog_*" ! -name "*.zip" ! -name "*.tar.gz" \) -exec mv {} release-assets/ \;
+
+      - name: Upload Release Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-assets/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
