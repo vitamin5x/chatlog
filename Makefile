@@ -19,7 +19,7 @@ UPX_PLATFORMS := \
 	linux/arm64 \
 	windows/amd64
 
-.PHONY: all clean lint tidy test build crossbuild upx tag tag-push tag-and-push tag-push-all tag-delete tag-auto tag-auto-push
+.PHONY: all clean lint tidy test build crossbuild build-wechat-mem0-core crossbuild-wechat-mem0-core upx tag tag-push tag-and-push tag-push-all tag-delete tag-auto tag-auto-push
 
 all: clean lint tidy test build
 
@@ -58,6 +58,25 @@ crossbuild: clean
 			echo "⚙️ Compressing binary $$output_name..." && upx --best $$output_name; \
 		fi; \
 	done
+
+build-wechat-mem0-core:
+	@echo "🔨 Building wechat-mem0-core for current platform..."
+	CGO_ENABLED=1 $(GO) build -trimpath $(LDFLAGS) -o bin/wechat-mem0-core cmd/wechat-mem0-core/main.go
+
+crossbuild-wechat-mem0-core:
+	@echo "🌍 Building wechat-mem0-core for multiple platforms..."
+	@mkdir -p bin
+	for platform in $(PLATFORMS); do \
+		os=$$(echo $$platform | cut -d/ -f1); \
+		arch=$$(echo $$platform | cut -d/ -f2); \
+		output_name=bin/wechat-mem0-core_$${os}_$${arch}; \
+		if [ "$$os" = "windows" ]; then \
+			output_name=$${output_name}.exe; \
+		fi; \
+		echo "🔨 Building wechat-mem0-core for $$os/$$arch..."; \
+		GOOS=$$os GOARCH=$$arch CGO_ENABLED=1 $(GO) build -trimpath $(LDFLAGS) -o $$output_name cmd/wechat-mem0-core/main.go || echo "⚠️  Failed to build for $$os/$$arch"; \
+	done
+
 
 REMOTE ?= origin
 TAG_PREFIX ?= v

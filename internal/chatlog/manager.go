@@ -305,6 +305,48 @@ func (m *Manager) CommandKey(configPath string, pid int, force bool, showXorKey 
 	return "", fmt.Errorf("wechat process not found")
 }
 
+func (m *Manager) CommandKeyForGRPC(configPath string, pid int, force bool, showXorKey bool) (*CommandKeyData, error) {
+	var err error
+	m.ctx, err = ctx.New(configPath)
+	if err != nil {
+		return nil, err
+	}
+
+	m.wechat = wechat.NewService(m.ctx)
+
+	m.ctx.WeChatInstances = m.wechat.GetWeChatInstances()
+	if len(m.ctx.WeChatInstances) == 0 {
+		return nil, fmt.Errorf("wechat process not found")
+	}
+
+	if len(m.ctx.WeChatInstances) == 1 {
+		key, imgKey := m.ctx.DataKey, m.ctx.ImgKey
+		if len(key) == 0 || len(imgKey) == 0 || force {
+			key, imgKey, err = m.ctx.WeChatInstances[0].GetKey(context.Background())
+			if err != nil {
+				return nil, err
+			}
+			m.ctx.Refresh()
+			m.ctx.UpdateConfig()
+		}
+
+		//result := fmt.Sprintf("Data Key: [%s]\nImage Key: [%s]", key, imgKey)
+		result := CommandKeyData{
+			DataKey:  key,
+			ImageKey: imgKey,
+		}
+		if m.ctx.Version == 4 && showXorKey {
+			if b, err := dat2img.ScanAndSetXorKey(m.ctx.DataDir); err == nil {
+				//result += fmt.Sprintf("\nXor Key: [0x%X]", b)
+				result.XorKey = fmt.Sprintf("0x%X", b)
+			}
+		}
+
+		return &result, nil
+	}
+	return nil, fmt.Errorf("wechat process not found")
+}
+
 func (m *Manager) CommandDecrypt(configPath string, cmdConf map[string]any) error {
 
 	var err error
