@@ -24,8 +24,7 @@ func initLog(debug bool, miscDir string) {
 		panic(err)
 	}
 
-	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, NoColor: true, TimeFormat: time.RFC3339}).
-		Output(zerolog.ConsoleWriter{Out: logFD, NoColor: true, TimeFormat: time.RFC3339})
+log.Logger = log.Output(zerolog.MultiLevelWriter(zerolog.ConsoleWriter{Out: os.Stderr, NoColor: true, TimeFormat: time.RFC3339}, zerolog.ConsoleWriter{Out: logFD, NoColor: true, TimeFormat: time.RFC3339}))
 }
 
 func main() {
