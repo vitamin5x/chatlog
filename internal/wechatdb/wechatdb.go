@@ -58,6 +58,13 @@ func (w *DB) Initialize() error {
 	return nil
 }
 
+func (w *DB) GetRepository() *repository.Repository {
+	return w.repo
+}
+func (w *DB) GetDatasource() datasource.DataSource {
+	return w.ds
+}
+
 func (w *DB) GetMessages(start, end time.Time, talker string, sender string, keyword string, limit, offset int) ([]*model.Message, error) {
 	ctx := context.Background()
 
