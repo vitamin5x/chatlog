@@ -41,12 +41,15 @@ test:
 
 build:
 	@echo "🔨 Building for current platform..."
-	@mkdir -p bin
-	@if [ "$$(uname -s)" = "Darwin" ] || [ "$$(uname -s)" = "Linux" ]; then \
-		CGO_ENABLED=1 $(GO) build -trimpath $(LDFLAGS) -o bin/$(BINARY_NAME) main.go; \
-	else \
-		powershell -Command "$env:CGO_ENABLED=1; $(GO) build -trimpath $(LDFLAGS) -o bin/$(BINARY_NAME).exe main.go"; \
-	fi
+	@if not exist bin mkdir bin
+ifeq ($(OS),Windows_NT)
+	@echo "Building for Windows..."
+	@set CGO_ENABLED=1
+	@$(GO) build -trimpath $(LDFLAGS) -o bin/$(BINARY_NAME).exe main.go
+else
+	@echo "Building for non-Windows..."
+	@CGO_ENABLED=1 $(GO) build -trimpath $(LDFLAGS) -o bin/$(BINARY_NAME) main.go
+endif
 
 crossbuild: clean
 	@echo "🌍 Building for multiple platforms..."
