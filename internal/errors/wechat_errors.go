@@ -14,6 +14,14 @@ var (
 	ErrValidatorNotSet               = New(nil, http.StatusBadRequest, "validator not set")
 	ErrNoValidKey                    = New(nil, http.StatusBadRequest, "no valid key found")
 	ErrWeChatDLLNotFound             = New(nil, http.StatusBadRequest, "WeChatWin.dll module not found")
+	ErrDllNotFound                   = New(nil, http.StatusBadRequest, "DLL not found")
+	ErrDllLoadFailed                 = New(nil, http.StatusInternalServerError, "DLL load failed")
+	ErrDllProcNotFound               = New(nil, http.StatusInternalServerError, "DLL procedure not found")
+	ErrDllNotLoaded                  = New(nil, http.StatusInternalServerError, "DLL not loaded")
+	ErrDllInitFailed                 = New(nil, http.StatusInternalServerError, "DLL initialization failed")
+	ErrDllPollTimeout                = New(nil, http.StatusInternalServerError, "DLL poll timeout")
+	ErrDllCallFailed                 = New(nil, http.StatusInternalServerError, "DLL call failed")
+	ErrDllCleanupFailed              = New(nil, http.StatusInternalServerError, "DLL cleanup failed")
 )
 
 func PlatformUnsupported(platform string, version int) *Error {
@@ -62,4 +70,29 @@ func WeChatAccountNotOnline(name string) *Error {
 
 func RefreshProcessStatusFailed(cause error) *Error {
 	return New(cause, http.StatusInternalServerError, "failed to refresh process status").WithStack()
+}
+
+// DLL相关错误函数
+func DllNotFound(path string) *Error {
+	return Newf(nil, http.StatusBadRequest, "DLL not found: %s", path).WithStack()
+}
+
+func DllLoadFailed(cause error) *Error {
+	return New(cause, http.StatusInternalServerError, "DLL load failed").WithStack()
+}
+
+func DllProcNotFound(procName string, cause error) *Error {
+	return Newf(cause, http.StatusInternalServerError, "DLL procedure not found: %s", procName).WithStack()
+}
+
+func DllInitFailed(cause error) *Error {
+	return New(cause, http.StatusInternalServerError, "DLL initialization failed").WithStack()
+}
+
+func DllCallFailed(procName string, cause error) *Error {
+	return Newf(cause, http.StatusInternalServerError, "DLL call failed: %s", procName).WithStack()
+}
+
+func DllCleanupFailed(cause error) *Error {
+	return New(cause, http.StatusInternalServerError, "DLL cleanup failed").WithStack()
 }

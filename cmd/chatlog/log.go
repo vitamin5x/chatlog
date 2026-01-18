@@ -27,17 +27,23 @@ func initLog(cmd *cobra.Command, args []string) {
 }
 
 func initTuiLog(cmd *cobra.Command, args []string) {
-	logOutput := io.Discard
+	var logOutput io.Writer
 
 	debug, _ := cmd.Flags().GetBool("debug")
 	if debug {
+		// 在调试模式下，同时输出到控制台和日志文件
 		logpath := util.DefaultWorkDir("")
 		util.PrepareDir(logpath)
 		logFD, err := os.OpenFile(filepath.Join(logpath, "chatlog.log"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, os.ModePerm)
 		if err != nil {
 			panic(err)
 		}
-		logOutput = logFD
+		// 同时输出到控制台和日志文件
+		logOutput = io.MultiWriter(os.Stderr, logFD)
+		// 设置全局日志级别为Debug
+		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	} else {
+		logOutput = io.Discard
 	}
 
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: logOutput, NoColor: true, TimeFormat: time.RFC3339})

@@ -628,8 +628,8 @@ func (a *App) settingDataDir() {
 	// 使用我们的自定义表单组件
 	formView := form.NewForm("设置数据目录")
 
-	// 临时存储用户输入的值
-	tempDataDir := a.ctx.DataDir
+	// 临时存储用户输入的值 - 使用GetDataDir()获取默认值
+	tempDataDir := a.ctx.GetDataDir()
 
 	// 添加输入字段 - 不直接设置数据目录，而是更新临时变量
 	formView.AddInputField("数据目录", tempDataDir, 0, nil, func(text string) {

@@ -3,6 +3,11 @@ package chatlog
 import (
 	"context"
 	"fmt"
+	"os"
+	"runtime"
+	"strings"
+	"time"
+
 	"github.com/rs/zerolog/log"
 	"github.com/sjzar/chatlog/internal/chatlog/conf"
 	"github.com/sjzar/chatlog/internal/chatlog/ctx"
@@ -10,11 +15,10 @@ import (
 	"github.com/sjzar/chatlog/internal/chatlog/http"
 	"github.com/sjzar/chatlog/internal/chatlog/wechat"
 	iwechat "github.com/sjzar/chatlog/internal/wechat"
+	"github.com/sjzar/chatlog/internal/wechat/process/windows"
 	"github.com/sjzar/chatlog/pkg/config"
 	"github.com/sjzar/chatlog/pkg/util"
 	"github.com/sjzar/chatlog/pkg/util/dat2img"
-	"os"
-	"strings"
 )
 
 // GRPCManager 管理聊天日志应用
@@ -163,15 +167,110 @@ func (m *GRPCManager) SetHTTPAddr(text string) error {
 }
 
 func (m *GRPCManager) GetDataKey() error {
-	if m.ctx.Current == nil {
-		return fmt.Errorf("未选择任何账号")
+	// 添加详细的日志记录
+	log.Debug().Bool("hasCurrent", m.ctx.Current != nil).Str("os", runtime.GOOS).Msg("GetDataKey 方法开始执行")
+
+	// 检查是否为Windows平台
+	isWindows := runtime.GOOS == "windows"
+	log.Debug().Bool("isWindows", isWindows).Msg("检查操作系统")
+
+	// 如果是Windows平台，无论是否有微信进程，都采用自动重启微信的方式获取密钥
+	// 因为直接从已运行的微信进程中获取密钥容易失败（DLL POLL TIMEOUT错误）
+	if isWindows {
+		// 检查是否有微信安装路径
+		wechatPath := windows.FindWeChatInstallPath()
+		if wechatPath == "" {
+			return fmt.Errorf("未找到微信安装路径，请先安装微信")
+		}
+
+		log.Info().Msg("Windows平台，尝试自动重启微信获取密钥...")
+
+		// 关闭所有微信进程，确保完全终止
+		log.Info().Msg("正在关闭所有微信进程...")
+		if err := windows.KillWeChatProcesses(); err != nil {
+			log.Warn().Err(err).Msg("关闭微信进程时出现警告")
+		}
+
+		// 启动微信
+		log.Info().Msg("正在启动新的微信实例...")
+		if err := windows.StartWeChat(wechatPath); err != nil {
+			return fmt.Errorf("启动微信失败: %w", err)
+		}
+
+		// 等待微信启动并检测到进程
+		log.Info().Msg("等待微信启动...")
+		startTime := time.Now()
+		var wechatInstance *iwechat.Account
+		const autoWeChatTimeout = 60 * time.Second
+
+		for time.Since(startTime) < autoWeChatTimeout {
+			// 刷新微信实例列表
+			m.ctx.WeChatInstances = m.wechat.GetWeChatInstances()
+			if len(m.ctx.WeChatInstances) >= 1 {
+				wechatInstance = m.ctx.WeChatInstances[0]
+				log.Info().Str("name", wechatInstance.Name).Uint32("pid", wechatInstance.PID).Msg("检测到微信进程")
+				break
+			}
+			// 等待1秒后重试
+			time.Sleep(1 * time.Second)
+		}
+
+		if wechatInstance == nil {
+			return fmt.Errorf("等待微信启动超时，请手动启动微信后重试")
+		}
+
+		// 切换到检测到的微信实例
+		if err := m.Switch(wechatInstance, ""); err != nil {
+			return fmt.Errorf("切换到微信实例失败: %w", err)
+		}
+
+		// 等待微信界面就绪并初始化登录流程
+		log.Info().Msg("等待微信界面就绪...")
+		time.Sleep(5 * time.Second) // 增加等待时间，确保微信完全初始化
+
+		// 等待用户登录并获取密钥
+		log.Info().Msg("等待用户登录微信账号...")
+		loginStartTime := time.Now()
+		var dataKey string
+		var err error
+
+		for time.Since(loginStartTime) < autoWeChatTimeout {
+			// 尝试获取密钥
+			dataKey, err = m.wechat.GetDataKey(m.ctx.Current)
+			if err == nil && dataKey != "" {
+				log.Info().Msg("密钥获取成功")
+				break
+			}
+			// 每2秒提示一次用户
+			if time.Since(loginStartTime)%5 == 0 {
+				log.Info().Msg("请继续登录微信账号，程序正在等待...")
+			}
+			// 等待2秒后重试
+			time.Sleep(2 * time.Second)
+		}
+
+		if err != nil {
+			return fmt.Errorf("获取密钥失败: %w", err)
+		}
+
+		m.ctx.Refresh()
+		m.ctx.UpdateConfig()
+		return nil
 	}
-	if _, err := m.wechat.GetDataKey(m.ctx.Current); err != nil {
-		return err
+
+	// 如果不是Windows平台，且已经选择了账号
+	if m.ctx.Current != nil {
+		log.Debug().Str("account", m.ctx.Current.Name).Uint32("pid", m.ctx.Current.PID).Msg("非Windows平台，直接尝试获取密钥")
+		if _, err := m.wechat.GetDataKey(m.ctx.Current); err != nil {
+			return err
+		}
+		m.ctx.Refresh()
+		m.ctx.UpdateConfig()
+		return nil
 	}
-	m.ctx.Refresh()
-	m.ctx.UpdateConfig()
-	return nil
+
+	// 如果不是Windows平台，且没有选择账号
+	return fmt.Errorf("未选择任何账号，请先选择微信账号")
 }
 
 func (m *GRPCManager) DecryptDBFiles() error {

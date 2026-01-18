@@ -1,8 +1,14 @@
+//go:build windows
+
 package chatlog
 
 import (
 	"context"
 	"fmt"
+	"os"
+	"runtime"
+	"strings"
+
 	"github.com/rs/zerolog/log"
 	"github.com/sjzar/chatlog/internal/chatlog/conf"
 	"github.com/sjzar/chatlog/internal/chatlog/ctx"
@@ -10,11 +16,10 @@ import (
 	"github.com/sjzar/chatlog/internal/chatlog/http"
 	"github.com/sjzar/chatlog/internal/chatlog/wechat"
 	iwechat "github.com/sjzar/chatlog/internal/wechat"
+	"github.com/sjzar/chatlog/internal/wechat/process/windows"
 	"github.com/sjzar/chatlog/pkg/config"
 	"github.com/sjzar/chatlog/pkg/util"
 	"github.com/sjzar/chatlog/pkg/util/dat2img"
-	"os"
-	"strings"
 )
 
 // CliManager 管理聊天日志应用
@@ -163,15 +168,80 @@ func (m *CliManager) SetHTTPAddr(text string) error {
 }
 
 func (m *CliManager) GetDataKey() error {
-	if m.ctx.Current == nil {
-		return fmt.Errorf("未选择任何账号")
+	// 添加详细的日志记录
+	log.Debug().Bool("hasCurrent", m.ctx.Current != nil).Str("os", runtime.GOOS).Msg("GetDataKey 方法开始执行")
+
+	// 检查是否为Windows平台
+	isWindows := runtime.GOOS == "windows"
+	log.Debug().Bool("isWindows", isWindows).Msg("检查操作系统")
+
+	// 如果已经选择了账号
+	if m.ctx.Current != nil {
+		log.Debug().Str("account", m.ctx.Current.Name).Uint32("pid", m.ctx.Current.PID).Msg("已经选择了微信账号")
+
+		// 检查账号信息是否完整
+		if m.ctx.Current.Name == "" || m.ctx.Current.Name == "unknown_wechat" || m.ctx.Current.DataDir == "" {
+			log.Debug().Str("account", m.ctx.Current.Name).Str("dataDir", m.ctx.Current.DataDir).Msg("账号信息不完整，尝试重新加载微信进程信息")
+
+			// 重新加载微信进程信息
+			iwechat.Load()
+
+			// 尝试查找当前账号对应的微信进程
+			accounts := iwechat.GetAccounts()
+			found := false
+			for _, acc := range accounts {
+				if acc.PID == m.ctx.Current.PID {
+					// 更新账号信息
+					m.ctx.Current.Name = acc.Name
+					m.ctx.Current.DataDir = acc.DataDir
+					found = true
+					log.Debug().Str("account", m.ctx.Current.Name).Str("dataDir", m.ctx.Current.DataDir).Msg("从微信进程中获取到完整的账号信息")
+					break
+				}
+			}
+
+			// 如果仍然无法获取完整的账号信息，提示用户登录微信后再尝试
+			if !found || m.ctx.Current.Name == "" || m.ctx.Current.Name == "unknown_wechat" || m.ctx.Current.DataDir == "" {
+				return fmt.Errorf("无法获取完整的微信账号信息，请确保微信已登录并处于运行状态，然后重新尝试获取密钥")
+			}
+		}
+
+		// 对于Windows平台，先杀死当前微信进程，然后重新启动微信获取密钥
+		// 因为直接从已运行的微信进程中获取密钥容易失败（DLL POLL TIMEOUT错误）
+		if isWindows {
+			log.Info().Msg("Windows平台，先杀死当前微信进程，然后重新启动获取密钥...")
+
+			// 杀死当前微信进程
+			log.Info().Uint32("pid", m.ctx.Current.PID).Msg("正在杀死当前微信进程...")
+			if err := windows.KillWeChatProcesses(); err != nil {
+				log.Warn().Err(err).Msg("杀死微信进程时出现警告")
+			}
+
+			// 清除当前选中的账号
+			m.ctx.Current = nil
+
+			// 执行自动重启微信获取密钥的逻辑
+			return m.autoGetDataKeyOnWindows()
+		}
+
+		// 对于非Windows平台，直接尝试获取密钥
+		log.Debug().Msg("非Windows平台，直接尝试获取密钥")
+		if _, err := m.wechat.GetDataKey(m.ctx.Current); err != nil {
+			return err
+		}
+		m.ctx.Refresh()
+		m.ctx.UpdateConfig()
+		return nil
 	}
-	if _, err := m.wechat.GetDataKey(m.ctx.Current); err != nil {
-		return err
+
+	// 如果没有选择账号，尝试自动获取密钥（仅Windows平台支持）
+	if isWindows {
+		log.Info().Msg("未选择任何账号，尝试自动重启微信获取密钥...")
+		return m.autoGetDataKeyOnWindows()
 	}
-	m.ctx.Refresh()
-	m.ctx.UpdateConfig()
-	return nil
+
+	// 如果不是Windows平台，返回原始错误
+	return fmt.Errorf("未选择任何账号，请先选择微信账号")
 }
 
 func (m *CliManager) DecryptDBFiles() error {
@@ -221,19 +291,51 @@ func (m *CliManager) StopAutoDecrypt() error {
 }
 
 func (m *CliManager) RefreshSession() error {
+	log.Debug().Msg("=== 开始刷新会话信息 ===")
+
+	// 检查当前上下文状态
+	log.Debug().Str("account", m.ctx.Account).Str("dataDir", m.ctx.DataDir).Str("dataKey", m.ctx.DataKey).Msg("当前上下文状态")
+
+	// 检查数据库连接
 	if m.db.GetDB() == nil {
+		log.Debug().Msg("数据库未连接，尝试启动数据库服务")
 		if err := m.db.Start(); err != nil {
+			log.Error().Err(err).Msg("启动数据库服务失败")
 			return err
 		}
+		log.Debug().Msg("数据库服务启动成功")
+	} else {
+		log.Debug().Msg("数据库已连接")
 	}
-	resp, err := m.db.GetSessions("", 1, 0)
+
+	// 尝试获取会话列表
+	log.Debug().Msg("尝试获取会话列表")
+	resp, err := m.db.GetSessions("", 10, 0) // 获取更多会话以便调试
 	if err != nil {
+		log.Error().Err(err).Msg("获取会话列表失败")
 		return err
 	}
+
+	// 检查会话列表结果
+	log.Debug().Int("sessionCount", len(resp.Items)).Msg("获取会话列表成功")
 	if len(resp.Items) == 0 {
+		log.Warn().Msg("会话列表为空，不更新LastSession")
 		return nil
 	}
-	m.ctx.LastSession = resp.Items[0].NTime
+
+	// 打印所有获取到的会话
+	for i, session := range resp.Items {
+		log.Debug().Int("index", i+1).Str("userName", session.UserName).Time("ntime", session.NTime).Msgf("会话 %d 信息", i+1)
+	}
+
+	// 更新会话时间
+	latestSession := resp.Items[0]
+	log.Info().Time("sessionTime", latestSession.NTime).Str("userName", latestSession.UserName).Msg("更新LastSession")
+	m.ctx.LastSession = latestSession.NTime
+
+	// 检查更新后的上下文状态
+	log.Debug().Time("lastSession", m.ctx.LastSession).Msg("更新后的上下文状态")
+	log.Debug().Msg("=== 刷新会话信息完成 ===")
 	return nil
 }
 

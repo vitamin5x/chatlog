@@ -541,6 +541,7 @@ func (ds *DataSource) GetChatRooms(ctx context.Context, key string, limit, offse
 
 // 最近会话
 func (ds *DataSource) GetSessions(ctx context.Context, key string, limit, offset int) ([]*model.Session, error) {
+	log.Debug().Msg("开始获取微信4.0会话列表")
 	var query string
 	var args []interface{}
 
@@ -551,11 +552,13 @@ func (ds *DataSource) GetSessions(ctx context.Context, key string, limit, offset
 				WHERE username = ? OR last_sender_display_name = ?
 				ORDER BY sort_timestamp DESC`
 		args = []interface{}{key, key}
+		log.Debug().Str("query", query).Interface("args", args).Msg("构建带关键字的会话查询")
 	} else {
 		// 查询所有会话
 		query = `SELECT username, summary, last_timestamp, last_msg_sender, last_sender_display_name 
 				FROM SessionTable 
 				ORDER BY sort_timestamp DESC`
+		log.Debug().Str("query", query).Msg("构建查询所有会话的SQL")
 	}
 
 	// 添加分页
@@ -565,20 +568,27 @@ func (ds *DataSource) GetSessions(ctx context.Context, key string, limit, offset
 			query += fmt.Sprintf(" OFFSET %d", offset)
 		}
 	}
+	log.Debug().Str("finalQuery", query).Int("limit", limit).Int("offset", offset).Msg("最终查询语句")
 
 	// 执行查询
 	db, err := ds.dbm.GetDB(Session)
 	if err != nil {
+		log.Error().Err(err).Msg("获取Session数据库连接失败")
 		return nil, err
 	}
+	log.Debug().Msg("成功获取Session数据库连接")
+
 	rows, err := db.QueryContext(ctx, query, args...)
 	if err != nil {
+		log.Error().Err(err).Msg("执行会话查询失败")
 		return nil, errors.QueryFailed(query, err)
 	}
 	defer rows.Close()
 
 	sessions := []*model.Session{}
+	rowCount := 0
 	for rows.Next() {
+		rowCount++
 		var sessionV4 model.SessionV4
 		err := rows.Scan(
 			&sessionV4.Username,
@@ -589,12 +599,30 @@ func (ds *DataSource) GetSessions(ctx context.Context, key string, limit, offset
 		)
 
 		if err != nil {
+			log.Error().Err(err).Msg("扫描会话行数据失败")
 			return nil, errors.ScanRowFailed(err)
 		}
+		log.Debug().Str("username", sessionV4.Username).Int("lastTimestamp", sessionV4.LastTimestamp).Msgf("第%d行会话数据", rowCount)
 
-		sessions = append(sessions, sessionV4.Wrap())
+		// 检查时间戳值
+		log.Debug().Int("lastTimestamp", sessionV4.LastTimestamp).Msgf("原始时间戳值: %d", sessionV4.LastTimestamp)
+
+		// 尝试两种时间戳单位转换
+		timeInSeconds := time.Unix(int64(sessionV4.LastTimestamp), 0)
+		timeInMilliseconds := time.Unix(int64(sessionV4.LastTimestamp)/1000, int64(sessionV4.LastTimestamp)%1000*1000000)
+		log.Debug().Time("timeInSeconds", timeInSeconds).Time("timeInMilliseconds", timeInMilliseconds).Msg("时间戳转换结果")
+
+		session := sessionV4.Wrap()
+		sessions = append(sessions, session)
+		log.Debug().Str("userName", session.UserName).Time("ntime", session.NTime).Msg("转换后的会话数据")
 	}
 
+	if err = rows.Err(); err != nil {
+		log.Error().Err(err).Msg("遍历会话结果集失败")
+		return nil, err
+	}
+
+	log.Debug().Int("totalSessions", len(sessions)).Int("scannedRows", rowCount).Msg("会话查询完成")
 	return sessions, nil
 }
 

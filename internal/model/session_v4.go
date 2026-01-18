@@ -44,11 +44,21 @@ type SessionV4 struct {
 }
 
 func (s *SessionV4) Wrap() *Session {
+	var ntime time.Time
+
+	// 检查时间戳的数量级，区分秒级和毫秒级
+	// 1e11 是 2001年左右的毫秒级时间戳，当前时间约为 1.8e12 毫秒
+	if s.LastTimestamp > 100000000000 { // 如果时间戳大于1e11，判断为毫秒级
+		ntime = time.Unix(int64(s.LastTimestamp)/1000, int64(s.LastTimestamp)%1000*1000000)
+	} else { // 否则判断为秒级
+		ntime = time.Unix(int64(s.LastTimestamp), 0)
+	}
+
 	return &Session{
 		UserName: s.Username,
 		NOrder:   s.LastTimestamp,
 		NickName: s.LastSenderDisplayName,
 		Content:  s.Summary,
-		NTime:    time.Unix(int64(s.LastTimestamp), 0),
+		NTime:    ntime,
 	}
 }

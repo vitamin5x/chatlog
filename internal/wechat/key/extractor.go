@@ -28,7 +28,7 @@ func NewExtractor(platform string, version int) (Extractor, error) {
 	case platform == "windows" && version == 3:
 		return windows.NewV3Extractor(), nil
 	case platform == "windows" && version == 4:
-		return windows.NewV4Extractor(), nil
+		return windows.NewWxKeyDllExtractor(), nil
 	case platform == "darwin" && version == 3:
 		return darwin.NewV3Extractor(), nil
 	case platform == "darwin" && version == 4:

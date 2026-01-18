@@ -61,7 +61,7 @@ func (d *Detector) FindProcesses() ([]*model.Process, error) {
 func (d *Detector) getProcessInfo(p *process.Process) (*model.Process, error) {
 	procInfo := &model.Process{
 		PID:      uint32(p.Pid),
-		Status:   model.StatusOffline,
+		Status:   model.StatusOnline, // 微信进程运行时默认设置为在线
 		Platform: model.PlatformMacOS,
 	}
 

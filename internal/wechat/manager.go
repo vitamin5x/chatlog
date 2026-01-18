@@ -2,8 +2,11 @@ package wechat
 
 import (
 	"context"
+	"path/filepath"
 	"runtime"
+	"strings"
 
+	"github.com/rs/zerolog/log"
 	"github.com/sjzar/chatlog/internal/errors"
 	"github.com/sjzar/chatlog/internal/wechat/model"
 	"github.com/sjzar/chatlog/internal/wechat/process"
@@ -63,10 +66,26 @@ func (m *Manager) Load() error {
 	for _, p := range processes {
 		account := NewAccount(p)
 
-		accounts = append(accounts, account)
-		if account.Name != "" {
-			processMap[account.Name] = p
+		// 如果账号名称为空，使用数据目录作为唯一标识符
+		if account.Name == "" {
+			if account.DataDir != "" {
+				// 使用数据目录的最后一部分作为账号名称
+				dataDirParts := strings.Split(account.DataDir, string(filepath.Separator))
+				if len(dataDirParts) > 0 {
+					account.Name = dataDirParts[len(dataDirParts)-1]
+					log.Debug().Str("dataDir", account.DataDir).Str("accountName", account.Name).Msg("使用数据目录作为微信账号名称")
+				} else {
+					account.Name = "unknown_wechat"
+					log.Debug().Msg("使用默认名称作为微信账号名称")
+				}
+			} else {
+				account.Name = "unknown_wechat"
+				log.Debug().Msg("使用默认名称作为微信账号名称")
+			}
 		}
+
+		accounts = append(accounts, account)
+		processMap[account.Name] = p
 	}
 
 	m.accounts = accounts
