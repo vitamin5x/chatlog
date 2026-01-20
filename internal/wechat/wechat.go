@@ -10,6 +10,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/sjzar/chatlog/internal/wechat/decrypt"
 	"github.com/sjzar/chatlog/internal/wechat/key"
+	"github.com/sjzar/chatlog/internal/wechat/key/image"
 	"github.com/sjzar/chatlog/internal/wechat/model"
 )
 
@@ -22,6 +23,8 @@ type Account struct {
 	DataDir     string
 	Key         string
 	ImgKey      string
+	ImageAESKey string
+	ImageXORKey string
 	PID         uint32
 	ExePath     string
 	Status      string
@@ -67,6 +70,25 @@ func (a *Account) RefreshStatus() error {
 	}
 
 	return nil
+}
+
+// GetImageKey 获取账号的图片密钥
+func (a *Account) GetImageKey(ctx context.Context) (string, string, error) {
+	// 仅支持 Windows V4
+	if a.Platform != "windows" || a.Version != 4 {
+		return "", "", fmt.Errorf("only support windows v4")
+	}
+
+	extractor := image.NewExtractor()
+	aesKey, xorKey, err := extractor.GetImageKey(a.DataDir, a.PID)
+	if err != nil {
+		return "", "", err
+	}
+
+	a.ImageAESKey = aesKey
+	a.ImageXORKey = xorKey
+
+	return aesKey, xorKey, nil
 }
 
 // GetKey 获取账号的密钥

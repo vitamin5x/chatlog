@@ -209,7 +209,26 @@ func (info *InfoBar) UpdateHTTPServer(server string) {
 }
 
 func (info *InfoBar) UpdateImageKey(key string) {
+	// 这里的 key 参数可能不再适用，或者我们传递组合字符串
+	// 但为了保持接口兼容，我们可能在 context refresh 时处理
 	info.table.GetCell(httpServerRow, valueCol2).SetText(key)
+}
+
+func (info *InfoBar) UpdateImageKeys(aesKey, xorKey string) {
+	text := "None"
+	if aesKey != "" || xorKey != "" {
+		// 截取部分显示以节省空间
+		aes := aesKey
+		if len(aes) > 8 {
+			aes = aes[:8] + "..."
+		}
+		xor := xorKey
+		if len(xor) > 8 {
+			xor = xor[:8] + "..."
+		}
+		text = fmt.Sprintf("AES:%s XOR:%s", aes, xor)
+	}
+	info.table.GetCell(httpServerRow, valueCol2).SetText(text)
 }
 
 // UpdateAutoDecrypt updates Auto Decrypt value.

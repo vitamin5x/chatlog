@@ -257,7 +257,7 @@ func (e *WxKeyDllExtractor) cleanup() {
 
 // pollKeys 轮询获取密钥
 func (e *WxKeyDllExtractor) pollKeys(ctx context.Context) (string, string, error) {
-	var dataKey, imgKey string
+	var dataKey string
 	keyBuf := make([]byte, 65) // 64位HEX字符串 + 结束符
 	pollInterval := 100 * time.Millisecond
 	timeout := time.After(60 * time.Second) // 增加超时时间到60秒
@@ -275,7 +275,6 @@ func (e *WxKeyDllExtractor) pollKeys(ctx context.Context) (string, string, error
 	log.Info().Msg("   - 如果超过60秒仍未获取到密钥，请重试")
 	log.Info().Msg(strings.Repeat("=", 60))
 
-	startTime := time.Now()
 	for {
 		select {
 		case <-ctx.Done():
@@ -337,30 +336,22 @@ func (e *WxKeyDllExtractor) pollKeys(ctx context.Context) (string, string, error
 
 				// 检查密钥类型
 				if len(keyBytes) == 32 {
-					if e.validator.Validate(keyBytes) {
-						dataKey = keyHex
-						log.Info().Msg("✓ 成功获取数据库密钥！")
+					// 尝试验证密钥
+					isValid := e.validator.Validate(keyBytes)
+					if isValid {
+						log.Info().Msg("✓ 成功获取并验证数据库密钥！")
 					} else {
-						log.Debug().Msg("不是有效的数据库密钥")
+						log.Warn().Str("key", keyHex).Msg("⚠️ 获取到数据库密钥，但在当前数据目录下验证失败（可能是数据目录检测错误），将尝试直接只用该密钥")
 					}
-				} else if len(keyBytes) == 16 {
-					if e.validator.ValidateImgKey(keyBytes) {
-						imgKey = keyHex
-						log.Info().Msg("✓ 成功获取图片密钥！")
-					} else {
-						log.Debug().Msg("不是有效的图片密钥")
-					}
-				} else {
-					log.Debug().Msgf("密钥长度不支持，期望16或32字节，实际获取到%d字节", len(keyBytes))
-				}
 
-				// 如果获取到了至少一种密钥，返回结果
-				// 不再等待两种密钥都获取到，避免超时
-				if dataKey != "" || imgKey != "" {
-					log.Info().Msgf("密钥获取完成！耗时: %v", time.Since(startTime))
-					log.Info().Msgf("数据库密钥: %s", dataKey)
-					log.Info().Msgf("图片密钥: %s", imgKey)
-					return dataKey, imgKey, nil
+					dataKey = keyHex
+					return dataKey, "", nil
+				} else if len(keyBytes) == 16 {
+					// 暂时忽略 DLL 返回的图片密钥，因为我们有了专门的提取器
+					// 且 DLL 返回的图片密钥可能不完整 (只有16字节，没有XOR)
+					log.Debug().Str("key", keyHex).Msg("检测到潜在的图片密钥(DLL)，但已忽略")
+				} else {
+					log.Debug().Msgf("密钥长度不支持，期望32字节，实际获取到%d字节", len(keyBytes))
 				}
 			}
 		}

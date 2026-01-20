@@ -96,10 +96,13 @@ func LoadServiceConfig(configPath string, cmdConf map[string]any) (*ServerConfig
 }
 
 var DataDirConfigs = map[string]bool{
-	"type":         true,
-	"platform":     true,
-	"version":      true,
-	"full_version": true,
-	"data_key":     true,
-	"img_key":      true,
+	"type":          true,
+	"platform":      true,
+	"version":       true,
+	"full_version":  true,
+	"data_key":      true,
+	"img_key":       true,
+	"image_aes_key": true,
+	"image_xor_key": true,
+	"work_dir":      true,
 }

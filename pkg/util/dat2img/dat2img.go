@@ -201,6 +201,25 @@ func SetAesKey(key string) {
 	V4Format2.AesKey = decoded
 }
 
+// SetXorKey sets the global XOR key for WeChat v4 dat files
+func SetXorKey(key string) {
+	if key == "" {
+		return
+	}
+	// key should be hex string e.g. "0xA3"
+	if strings.HasPrefix(key, "0x") || strings.HasPrefix(key, "0X") {
+		key = key[2:]
+	}
+	decoded, err := hex.DecodeString(key)
+	if err != nil {
+		log.Error().Err(err).Msg("invalid xor key")
+		return
+	}
+	if len(decoded) > 0 {
+		V4XorKey = decoded[0]
+	}
+}
+
 // Dat2ImageV4 processes WeChat v4 dat image files
 // WeChat v4 uses a combination of AES-ECB and XOR encryption
 func Dat2ImageV4(data []byte, aeskey []byte) ([]byte, string, error) {

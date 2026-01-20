@@ -110,8 +110,18 @@ func (m *GRPCManager) StartService() error {
 
 	// 如果是 4.0 版本，更新下 xorkey
 	if m.ctx.Version == 4 {
-		dat2img.SetAesKey(m.ctx.ImgKey)
-		go dat2img.ScanAndSetXorKey(m.ctx.DataDir)
+		if m.ctx.ImageAESKey != "" {
+			dat2img.SetAesKey(m.ctx.ImageAESKey)
+		} else {
+			// 兼容旧逻辑
+			dat2img.SetAesKey(m.ctx.ImgKey)
+		}
+
+		if m.ctx.ImageXORKey != "" {
+			dat2img.SetXorKey(m.ctx.ImageXORKey)
+		} else {
+			go dat2img.ScanAndSetXorKey(m.ctx.DataDir)
+		}
 	}
 
 	// 更新状态
@@ -164,6 +174,10 @@ func (m *GRPCManager) SetHTTPAddr(text string) error {
 	}
 	m.ctx.SetHTTPAddr(addr)
 	return nil
+}
+
+func (m *GRPCManager) GetImageKey() error {
+	return fmt.Errorf("getting image key is not supported in gRPC mode")
 }
 
 func (m *GRPCManager) GetDataKey() error {
@@ -450,8 +464,17 @@ func (m *GRPCManager) CommandHTTPServer(configPath string, cmdConf map[string]an
 	// 如果是 4.0 版本，处理图片密钥
 	version := m.sc.GetVersion()
 	if version == 4 && len(dataDir) != 0 {
-		dat2img.SetAesKey(m.sc.GetImgKey())
-		go dat2img.ScanAndSetXorKey(dataDir)
+		if m.sc.GetImageAESKey() != "" {
+			dat2img.SetAesKey(m.sc.GetImageAESKey())
+		} else {
+			dat2img.SetAesKey(m.sc.GetImgKey())
+		}
+
+		if m.sc.GetImageXORKey() != "" {
+			dat2img.SetXorKey(m.sc.GetImageXORKey())
+		} else {
+			go dat2img.ScanAndSetXorKey(dataDir)
+		}
 	}
 
 	log.Info().Msgf("server config: %+v", m.sc)

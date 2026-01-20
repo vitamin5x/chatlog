@@ -12,6 +12,8 @@ type ServerConfig struct {
 	DataDir     string   `mapstructure:"data_dir"`
 	DataKey     string   `mapstructure:"data_key"`
 	ImgKey      string   `mapstructure:"img_key"`
+	ImageAESKey string   `mapstructure:"image_aes_key"`
+	ImageXORKey string   `mapstructure:"image_xor_key"`
 	WorkDir     string   `mapstructure:"work_dir"`
 	HTTPAddr    string   `mapstructure:"http_addr"`
 	AutoDecrypt bool     `mapstructure:"auto_decrypt"`
@@ -42,6 +44,14 @@ func (c *ServerConfig) GetDataKey() string {
 
 func (c *ServerConfig) GetImgKey() string {
 	return c.ImgKey
+}
+
+func (c *ServerConfig) GetImageAESKey() string {
+	return c.ImageAESKey
+}
+
+func (c *ServerConfig) GetImageXORKey() string {
+	return c.ImageXORKey
 }
 
 func (c *ServerConfig) GetAutoDecrypt() bool {

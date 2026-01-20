@@ -100,7 +100,7 @@ func (a *App) updateMenuItemsState() {
 	// 查找并更新自动解密菜单项
 	for _, item := range a.menu.GetItems() {
 		// 更新自动解密菜单项
-		if item.Index == 5 {
+		if item.Index == 6 {
 			if a.ctx.AutoDecrypt {
 				item.Name = "停止自动解密"
 				item.Description = "停止监控数据目录更新，不再自动解密新增数据"
@@ -111,7 +111,7 @@ func (a *App) updateMenuItemsState() {
 		}
 
 		// 更新HTTP服务菜单项
-		if item.Index == 4 {
+		if item.Index == 5 {
 			if a.ctx.HTTPEnabled {
 				item.Name = "停止 HTTP 服务"
 				item.Description = "停止本地 HTTP & MCP 服务器"
@@ -202,14 +202,14 @@ func (a *App) inputCapture(event *tcell.EventKey) *tcell.EventKey {
 func (a *App) initMenu() {
 	getDataKey := &menu.Item{
 		Index:       2,
-		Name:        "获取密钥",
-		Description: "从进程获取数据密钥 & 图片密钥",
+		Name:        "获取数据库密钥",
+		Description: "从进程获取数据密钥",
 		Selected: func(i *menu.Item) {
 			modal := tview.NewModal()
 			if runtime.GOOS == "darwin" {
 				modal.SetText("获取密钥中...\n预计需要 20 秒左右的时间，期间微信会卡住，请耐心等待")
 			} else {
-				modal.SetText("获取密钥中...")
+				modal.SetText("获取数据库密钥中...")
 			}
 			a.mainPages.AddPage("modal", modal, true, true)
 			a.SetFocus(modal)
@@ -221,10 +221,46 @@ func (a *App) initMenu() {
 				a.QueueUpdateDraw(func() {
 					if err != nil {
 						// 解密失败
-						modal.SetText("获取密钥失败: " + err.Error())
+						modal.SetText("获取数据库密钥失败: " + err.Error())
 					} else {
 						// 解密成功
-						modal.SetText("获取密钥成功")
+						modal.SetText("获取数据库密钥成功")
+					}
+
+					// 添加确认按钮
+					modal.AddButtons([]string{"OK"})
+					modal.SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+						a.mainPages.RemovePage("modal")
+					})
+					a.SetFocus(modal)
+				})
+			}()
+		},
+	}
+
+	getImageKey := &menu.Item{
+		Index:       3,
+		Name:        "获取图片密钥",
+		Description: "从进程获取数据 & 计算图片密钥",
+		Selected: func(i *menu.Item) {
+			modal := tview.NewModal()
+			if runtime.GOOS == "darwin" {
+				modal.SetText("获取图片密钥中...\n预计需要 20 秒左右的时间，期间微信会卡住，请耐心等待")
+			} else {
+				modal.SetText("获取图片密钥中...")
+			}
+			a.mainPages.AddPage("modal", modal, true, true)
+			a.SetFocus(modal)
+
+			go func() {
+				err := a.m.GetImageKey()
+
+				// 在主线程中更新UI
+				a.QueueUpdateDraw(func() {
+					if err != nil {
+						modal.SetText("获取图片密钥失败: " + err.Error())
+					} else {
+						modal.SetText("获取图片密钥成功")
 					}
 
 					// 添加确认按钮
@@ -239,7 +275,7 @@ func (a *App) initMenu() {
 	}
 
 	decryptData := &menu.Item{
-		Index:       3,
+		Index:       4,
 		Name:        "解密数据",
 		Description: "解密数据文件",
 		Selected: func(i *menu.Item) {
@@ -277,7 +313,7 @@ func (a *App) initMenu() {
 	}
 
 	httpServer := &menu.Item{
-		Index:       4,
+		Index:       5,
 		Name:        "启动 HTTP 服务",
 		Description: "启动本地 HTTP & MCP 服务器",
 		Selected: func(i *menu.Item) {
@@ -351,7 +387,7 @@ func (a *App) initMenu() {
 	}
 
 	autoDecrypt := &menu.Item{
-		Index:       5,
+		Index:       6,
 		Name:        "开启自动解密",
 		Description: "自动解密新增的数据文件",
 		Selected: func(i *menu.Item) {
@@ -429,20 +465,21 @@ func (a *App) initMenu() {
 	}
 
 	setting := &menu.Item{
-		Index:       6,
+		Index:       7,
 		Name:        "设置",
 		Description: "设置应用程序选项",
 		Selected:    a.settingSelected,
 	}
 
 	selectAccount := &menu.Item{
-		Index:       7,
+		Index:       8,
 		Name:        "切换账号",
 		Description: "切换当前操作的账号，可以选择进程或历史账号",
 		Selected:    a.selectAccountSelected,
 	}
 
 	a.menu.AddItem(getDataKey)
+	a.menu.AddItem(getImageKey)
 	a.menu.AddItem(decryptData)
 	a.menu.AddItem(httpServer)
 	a.menu.AddItem(autoDecrypt)
@@ -450,7 +487,7 @@ func (a *App) initMenu() {
 	a.menu.AddItem(selectAccount)
 
 	a.menu.AddItem(&menu.Item{
-		Index:       8,
+		Index:       9,
 		Name:        "退出",
 		Description: "退出程序",
 		Selected: func(i *menu.Item) {
@@ -485,9 +522,14 @@ func (a *App) settingSelected(i *menu.Item) {
 			action:      a.settingDataKey,
 		},
 		{
-			name:        "设置图片密钥",
-			description: "配置图片解密密钥",
-			action:      a.settingImgKey,
+			name:        "设置图片 AES 密钥",
+			description: "配置图片 AES 解密密钥",
+			action:      a.settingImageAESKey,
+		},
+		{
+			name:        "设置图片 XOR 密钥",
+			description: "配置图片 XOR 解密密钥",
+			action:      a.settingImageXORKey,
 		},
 		{
 			name:        "设置数据目录",
@@ -839,4 +881,52 @@ func (a *App) showInfo(text string) {
 	a.showModal(text, []string{"OK"}, func(buttonIndex int, buttonLabel string) {
 		a.mainPages.RemovePage("modal")
 	})
+}
+
+// settingImageAESKey 设置图片 AES 密钥
+func (a *App) settingImageAESKey() {
+	formView := form.NewForm("设置图片 AES 密钥")
+
+	tempKey := a.ctx.ImageAESKey
+
+	formView.AddInputField("图片 AES 密钥", tempKey, 0, nil, func(text string) {
+		tempKey = text
+	})
+
+	formView.AddButton("保存", func() {
+		a.ctx.SetImageAESKey(tempKey)
+		a.mainPages.RemovePage("submenu2")
+		a.showInfo("图片 AES 密钥已设置")
+	})
+
+	formView.AddButton("取消", func() {
+		a.mainPages.RemovePage("submenu2")
+	})
+
+	a.mainPages.AddPage("submenu2", formView, true, true)
+	a.SetFocus(formView)
+}
+
+// settingImageXORKey 设置图片 XOR 密钥
+func (a *App) settingImageXORKey() {
+	formView := form.NewForm("设置图片 XOR 密钥")
+
+	tempKey := a.ctx.ImageXORKey
+
+	formView.AddInputField("图片 XOR 密钥", tempKey, 0, nil, func(text string) {
+		tempKey = text
+	})
+
+	formView.AddButton("保存", func() {
+		a.ctx.SetImageXORKey(tempKey)
+		a.mainPages.RemovePage("submenu2")
+		a.showInfo("图片 XOR 密钥已设置")
+	})
+
+	formView.AddButton("取消", func() {
+		a.mainPages.RemovePage("submenu2")
+	})
+
+	a.mainPages.AddPage("submenu2", formView, true, true)
+	a.SetFocus(formView)
 }

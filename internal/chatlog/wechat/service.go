@@ -67,6 +67,20 @@ func (s *Service) GetDataKey(info *wechat.Account) (string, error) {
 	return key, nil
 }
 
+// GetImageKey extracts the image encryption key from a WeChat process
+func (s *Service) GetImageKey(info *wechat.Account) (string, string, error) {
+	if info == nil {
+		return "", "", fmt.Errorf("no WeChat instance selected")
+	}
+
+	key, xorKey, err := info.GetImageKey(context.Background())
+	if err != nil {
+		return "", "", err
+	}
+
+	return key, xorKey, nil
+}
+
 func (s *Service) StartAutoDecrypt() error {
 	log.Info().Msgf("start auto decrypt, data dir: %s", s.conf.GetDataDir())
 	dbGroup, err := filemonitor.NewFileGroup("wechat", s.conf.GetDataDir(), `.*\.db$`, []string{"fts"})

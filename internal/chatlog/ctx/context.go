@@ -37,6 +37,8 @@ type Context struct {
 	DataKey     string
 	DataUsage   string
 	ImgKey      string
+	ImageAESKey string
+	ImageXORKey string
 
 	// 工作目录相关状态
 	WorkDir   string
@@ -146,6 +148,8 @@ func (c *Context) loadHistory(history conf.ProcessConfig) {
 	c.FullVersion = history.FullVersion
 	c.DataKey = history.DataKey
 	c.ImgKey = history.ImgKey
+	c.ImageAESKey = history.ImageAESKey
+	c.ImageXORKey = history.ImageXORKey
 	c.DataDir = history.DataDir
 	c.WorkDir = history.WorkDir
 	c.HTTPEnabled = history.HTTPEnabled
@@ -160,6 +164,8 @@ func (c *Context) clearAccountInfo() {
 	c.FullVersion = ""
 	c.DataKey = ""
 	c.ImgKey = ""
+	c.ImageAESKey = ""
+	c.ImageXORKey = ""
 	c.DataDir = ""
 	c.WorkDir = ""
 	c.HTTPEnabled = false
@@ -184,6 +190,12 @@ func (c *Context) SwitchCurrent(info *wechat.Account) {
 		}
 	} else {
 		log.Debug().Str("account", info.Name).Msg("未找到账号的历史记录")
+		// 如果是新的有效账号（非unknown），且不在历史记录中，应该清除之前的账号信息
+		if info.Name != "" && info.Name != "unknown_wechat" && !strings.Contains(info.Name, "unknown_wechat") {
+			log.Info().Str("account", info.Name).Msg("切换到新的未知账号，清除旧的上下文信息")
+			c.clearAccountInfo()
+			c.Account = info.Name
+		}
 	}
 
 	// 无论是否有历史记录，都使用当前微信实例的数据目录（如果存在且更完整）
@@ -224,6 +236,12 @@ func (c *Context) Refresh() {
 		}
 		if c.Current.ImgKey != "" && c.Current.ImgKey != c.ImgKey {
 			c.ImgKey = c.Current.ImgKey
+		}
+		if c.Current.ImageAESKey != "" && c.Current.ImageAESKey != c.ImageAESKey {
+			c.ImageAESKey = c.Current.ImageAESKey
+		}
+		if c.Current.ImageXORKey != "" && c.Current.ImageXORKey != c.ImageXORKey {
+			c.ImageXORKey = c.Current.ImageXORKey
 		}
 		// 如果当前账号的数据目录更完整或包含真实的微信账号名，则更新用户设置的数据目录
 		if c.Current.DataDir != "" {
@@ -351,6 +369,26 @@ func (c *Context) SetImgKey(key string) {
 	c.UpdateConfig()
 }
 
+func (c *Context) SetImageAESKey(key string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.ImageAESKey == key {
+		return
+	}
+	c.ImageAESKey = key
+	c.UpdateConfig()
+}
+
+func (c *Context) SetImageXORKey(key string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.ImageXORKey == key {
+		return
+	}
+	c.ImageXORKey = key
+	c.UpdateConfig()
+}
+
 func (c *Context) SetAutoDecrypt(enabled bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -373,6 +411,8 @@ func (c *Context) UpdateConfig() {
 		DataDir:     c.DataDir,
 		DataKey:     c.DataKey,
 		ImgKey:      c.ImgKey,
+		ImageAESKey: c.ImageAESKey,
+		ImageXORKey: c.ImageXORKey,
 		WorkDir:     c.WorkDir,
 		HTTPEnabled: c.HTTPEnabled,
 		HTTPAddr:    c.HTTPAddr,

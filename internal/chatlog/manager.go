@@ -9,6 +9,7 @@ type Manager interface {
 	StopService() error
 	SetHTTPAddr(text string) error
 	GetDataKey() error
+	GetImageKey() error
 	DecryptDBFiles() error
 	StartAutoDecrypt() error
 	StopAutoDecrypt() error
