@@ -193,12 +193,29 @@ func SetAesKey(key string) {
 	if key == "" {
 		return
 	}
-	decoded, err := hex.DecodeString(key)
-	if err != nil {
-		log.Error().Err(err).Msg("invalid aes key")
+	// WeChat V4 image decryption uses AES-128-ECB, which requires a 16-byte key.
+	// Even if a 32-byte key is extracted from memory, only the first 16 bytes are used.
+	if len(key) == 16 || len(key) == 32 {
+		V4Format2.AesKey = []byte(key[:16])
+		log.Debug().Int("len", len(key)).Msg("Set WeChat V4 Image AES-128 Key (truncated to 16 bytes if necessary)")
 		return
 	}
-	V4Format2.AesKey = decoded
+	decoded, err := hex.DecodeString(key)
+	if err != nil {
+		log.Error().Err(err).Msg("invalid aes key format")
+		return
+	}
+	if len(decoded) >= 16 {
+		V4Format2.AesKey = decoded[:16]
+	} else {
+		V4Format2.AesKey = decoded
+	}
+}
+
+func SetRawAesKey(key []byte) {
+	if len(key) >= 16 {
+		V4Format2.AesKey = key[:16]
+	}
 }
 
 // SetXorKey sets the global XOR key for WeChat v4 dat files
@@ -227,62 +244,55 @@ func Dat2ImageV4(data []byte, aeskey []byte) ([]byte, string, error) {
 		return nil, "", fmt.Errorf("data length is too short for WeChat v4 format: %d", len(data))
 	}
 
-	// Parse dat file header:
-	// - 6 bytes: 0x07085631 or 0x07085632 (dat file identifier)
-	// - 4 bytes: int (little-endian) AES-ECB128 encryption length
-	// - 4 bytes: int (little-endian) XOR encryption length
-	// - 1 byte:  0x01 (unknown)
+	// Read AES encryption length and XOR length from header (bytes 6-10 and 10-14)
+	aesSize := binary.LittleEndian.Uint32(data[6:10])
+	xorSize := binary.LittleEndian.Uint32(data[10:14])
 
-	// Read AES encryption length
-	aesEncryptLen := binary.LittleEndian.Uint32(data[6:10])
-	// Read XOR encryption length
-	xorEncryptLen := binary.LittleEndian.Uint32(data[10:14])
+	// Data starts after 15-byte header
+	payload := data[15:]
 
-	// Data after header
-	fileData := data[15:]
-
-	// AES encrypted part (max 1KB)
-	// Round up to multiple of 16 bytes for AES block size
-	aesEncryptLen0 := (aesEncryptLen)/16*16 + 16
-	if aesEncryptLen0 > uint32(len(fileData)) {
-		aesEncryptLen0 = uint32(len(fileData))
+	// AES data needs to be aligned to 16 bytes for PKCS7
+	remainder := aesSize % 16
+	alignedAesSize := aesSize + (16 - remainder)
+	if remainder == 0 {
+		alignedAesSize = aesSize + 16
 	}
 
-	// Decrypt AES part
-	aesDecryptedData, err := decryptAESECB(fileData[:aesEncryptLen0], aeskey)
-	if err != nil {
-		return nil, "", fmt.Errorf("AES decrypt error: %v", err)
+	if uint32(len(payload)) < alignedAesSize {
+		return nil, "", fmt.Errorf("AES data length exceeds file length")
 	}
 
-	// Prepare result buffer
-	var result []byte
-
-	// Add decrypted AES part (remove padding if necessary)
-	if len(aesDecryptedData) > int(aesEncryptLen) {
-		result = append(result, aesDecryptedData[:aesEncryptLen]...)
-	} else {
-		result = append(result, aesDecryptedData...)
-	}
-
-	// Add unencrypted middle part
-	middleStart := aesEncryptLen0
-	middleEnd := uint32(len(fileData)) - xorEncryptLen
-	if middleStart < middleEnd {
-		result = append(result, fileData[middleStart:middleEnd]...)
-	}
-
-	// Process XOR-encrypted part (file tail)
-	if xorEncryptLen > 0 && middleEnd < uint32(len(fileData)) {
-		xorData := fileData[middleEnd:]
-
-		// Apply XOR decryption using global key
-		xorDecrypted := make([]byte, len(xorData))
-		for i := range xorData {
-			xorDecrypted[i] = xorData[i] ^ V4XorKey
+	aesData := payload[:alignedAesSize]
+	var unpadded []byte
+	if len(aesData) > 0 {
+		decrypted, err := decryptAESECB(aesData, aeskey)
+		if err != nil {
+			return nil, "", fmt.Errorf("AES decrypt error: %v", err)
 		}
-
-		result = append(result, xorDecrypted...)
+		// decryptAESECB already handles PKCS7 padding removal if present
+		unpadded = decrypted
 	}
+
+	// Remaining data starts after the aligned AES block
+	remaining := payload[alignedAesSize:]
+	if xorSize > uint32(len(remaining)) {
+		return nil, "", fmt.Errorf("XOR data length exceeds remaining file length")
+	}
+
+	rawLength := uint32(len(remaining)) - xorSize
+	rawData := remaining[:rawLength]
+	xorPayload := remaining[rawLength:]
+
+	xoredData := make([]byte, len(xorPayload))
+	for i := range xorPayload {
+		xoredData[i] = xorPayload[i] ^ V4XorKey
+	}
+
+	// Combine all parts
+	result := make([]byte, 0, len(unpadded)+len(rawData)+len(xoredData))
+	result = append(result, unpadded...)
+	result = append(result, rawData...)
+	result = append(result, xoredData...)
 
 	// Identify image type from decrypted data
 	imgType := ""
@@ -294,11 +304,17 @@ func Dat2ImageV4(data []byte, aeskey []byte) ([]byte, string, error) {
 	}
 
 	if imgType == "wxgf" {
+		log.Debug().Msg("Detected wxgf format, attempting conversion...")
 		return Wxam2pic(result)
 	}
 
 	if imgType == "" {
-		return nil, "", fmt.Errorf("unknown image type after decryption")
+		// Log the first few bytes for debugging
+		headerHex := ""
+		if len(result) >= 8 {
+			headerHex = hex.EncodeToString(result[:8])
+		}
+		return nil, "", fmt.Errorf("unknown image type after decryption (header: %s)", headerHex)
 	}
 
 	return result, imgType, nil

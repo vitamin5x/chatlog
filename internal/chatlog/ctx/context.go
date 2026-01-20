@@ -399,6 +399,18 @@ func (c *Context) SetAutoDecrypt(enabled bool) {
 	c.UpdateConfig()
 }
 
+func (c *Context) GetImageAESKey() string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.ImageAESKey
+}
+
+func (c *Context) GetImageXORKey() string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.ImageXORKey
+}
+
 // 更新配置
 func (c *Context) UpdateConfig() {
 

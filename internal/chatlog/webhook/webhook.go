@@ -23,21 +23,21 @@ type Webhook interface {
 }
 
 type Service struct {
-	config *conf.Webhook
+	config Config
 	hooks  map[string][]*conf.WebhookItem
 }
 
 func New(config Config) *Service {
 	s := &Service{
-		config: config.GetWebhook(),
+		config: config,
 	}
 
-	if s.config == nil {
+	if s.config == nil || s.config.GetWebhook() == nil {
 		return s
 	}
 
 	hooks := make(map[string][]*conf.WebhookItem)
-	for _, item := range s.config.Items {
+	for _, item := range s.config.GetWebhook().Items {
 		if item.Disabled {
 			continue
 		}
@@ -69,9 +69,9 @@ func (s *Service) GetHooks(ctx context.Context, db *wechatdb.DB) []*Group {
 	for group, items := range s.hooks {
 		hooks := make([]Webhook, 0)
 		for _, item := range items {
-			hooks = append(hooks, NewMessageWebhook(item, db, s.config.Host))
+			hooks = append(hooks, NewMessageWebhook(item, db, s.config.GetWebhook().Host))
 		}
-		groups = append(groups, NewGroup(ctx, group, hooks, s.config.DelayMs))
+		groups = append(groups, NewGroup(ctx, group, hooks, s.config.GetWebhook().DelayMs))
 	}
 
 	return groups
@@ -145,10 +145,10 @@ type MessageWebhook struct {
 	lastTime time.Time
 }
 
-func NewMessageWebhook(conf *conf.WebhookItem, db *wechatdb.DB, host string) *MessageWebhook {
+func NewMessageWebhook(item *conf.WebhookItem, db *wechatdb.DB, host string) *MessageWebhook {
 	m := &MessageWebhook{
 		host:     host,
-		conf:     conf,
+		conf:     item,
 		client:   &http.Client{Timeout: time.Second * 10},
 		db:       db,
 		lastTime: time.Now(),
@@ -182,6 +182,7 @@ func (m *MessageWebhook) Do(event fsnotify.Event) {
 		"length":   len(messages),
 		"messages": messages,
 	}
+
 	body, _ := json.Marshal(ret)
 	req, _ := http.NewRequest("POST", m.conf.URL, bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")

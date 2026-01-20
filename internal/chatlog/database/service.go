@@ -30,8 +30,11 @@ type Service struct {
 
 type Config interface {
 	GetWorkDir() string
+	GetDataDir() string
 	GetPlatform() string
 	GetVersion() int
+	GetImageAESKey() string
+	GetImageXORKey() string
 	GetWebhook() *conf.Webhook
 }
 

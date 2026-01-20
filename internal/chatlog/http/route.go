@@ -307,7 +307,7 @@ func (s *Service) handleMedia(c *gin.Context, _type string) {
 
 	var _err error
 	for _, k := range keys {
-		if strings.Contains(k, "/") {
+		if strings.Contains(k, "/") || strings.Contains(k, "\\") {
 			if absolutePath, err := s.findPath(_type, k); err == nil {
 				c.Redirect(http.StatusFound, "/data/"+absolutePath)
 				return
@@ -391,6 +391,20 @@ func (s *Service) HandleDatFile(c *gin.Context, path string) {
 		return
 	}
 	out, ext, err := dat2img.Dat2Image(b)
+
+	// 如果解密结果是 mp4 (wxgf) 且当前不是 _t.dat，尝试获取缩略图
+	if err == nil && ext == "mp4" && !strings.HasSuffix(path, "_t.dat") {
+		thumbPath := strings.TrimSuffix(path, ".dat") + "_t.dat"
+		if _, serr := os.Stat(thumbPath); serr == nil {
+			if tdat, terr := os.ReadFile(thumbPath); terr == nil {
+				if tout, text, terr := dat2img.Dat2Image(tdat); terr == nil {
+					out = tout
+					ext = text
+				}
+			}
+		}
+	}
+
 	if err != nil {
 		c.File(path)
 		return
