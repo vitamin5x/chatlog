@@ -17,6 +17,7 @@ import (
 	"github.com/sjzar/chatlog/internal/errors"
 	"github.com/sjzar/chatlog/internal/wechat/decrypt"
 	"github.com/sjzar/chatlog/internal/wechat/model"
+	"github.com/sjzar/chatlog/pkg/util"
 )
 
 // DllExport 定义DLL导出函数类型
@@ -83,10 +84,10 @@ func (e *WxKeyDllExtractor) loadDLL() error {
 	}
 
 	var lastErr error
-	log.Debug().Msgf("正在尝试从%d个路径加载wx_key.dll", len(dllPaths))
+	log.Info().Msgf("正在尝试从%d个路径加载wx_key.dll", len(dllPaths))
 
 	for _, path := range dllPaths {
-		log.Debug().Str("path", path).Msg("尝试加载wx_key.dll")
+		log.Info().Str("path", path).Msg("尝试加载wx_key.dll")
 		handle, err := windows.LoadLibrary(path)
 		if err == nil {
 			e.dllHandle = handle
@@ -143,7 +144,14 @@ func (e *WxKeyDllExtractor) getLastErrorMsg() string {
 		return "获取错误信息失败"
 	}
 
-	return windows.UTF16PtrToString((*uint16)(unsafe.Pointer(ret)))
+	// 根据参考，DLL返回的是UTF-8编码的指针
+	p := (*[1 << 30]byte)(unsafe.Pointer(ret))
+	n := 0
+	for p[n] != 0 {
+		n++
+	}
+
+	return string(p[:n])
 }
 
 // getStatusMessage 获取状态信息 - 单次调用
@@ -198,12 +206,12 @@ func (e *WxKeyDllExtractor) Extract(ctx context.Context, proc *model.Process) (s
 
 	// 初始化Hook
 	if !e.initializeHook(proc.PID) {
-		return "", "", errors.DllInitFailed(fmt.Errorf(e.getLastErrorMsg()))
+		return "", "", errors.DllInitFailed(fmt.Errorf("%s", e.getLastErrorMsg()))
 	}
 	defer e.cleanupHook()
 
 	// 轮询获取密钥
-	return e.pollKeys(ctx)
+	return e.pollKeys(ctx, proc, e.validator.GetDataDir())
 }
 
 // getStatusMessage 获取所有状态信息 - 循环调用直到没有更多消息
@@ -256,11 +264,12 @@ func (e *WxKeyDllExtractor) cleanup() {
 }
 
 // pollKeys 轮询获取密钥
-func (e *WxKeyDllExtractor) pollKeys(ctx context.Context) (string, string, error) {
+func (e *WxKeyDllExtractor) pollKeys(ctx context.Context, proc *model.Process, validatorDataDir string) (string, string, error) {
 	var dataKey string
-	keyBuf := make([]byte, 65) // 64位HEX字符串 + 结束符
+	keyBuf := make([]byte, 129) // 增加缓冲区大小到128位 + 结束符，与参考文档保持一致
 	pollInterval := 100 * time.Millisecond
 	timeout := time.After(60 * time.Second) // 增加超时时间到60秒
+	lastHeartbeat := time.Now()
 
 	log.Info().Msg(strings.Repeat("=", 60))
 	log.Info().Msg("🔑 Hook已成功安装到微信进程！")
@@ -278,31 +287,44 @@ func (e *WxKeyDllExtractor) pollKeys(ctx context.Context) (string, string, error
 	for {
 		select {
 		case <-ctx.Done():
+			log.Warn().Msg("密钥获取任务被取消")
 			return "", "", ctx.Err()
 		case <-timeout:
-			log.Error().Msg("密钥获取超时！")
-			log.Error().Msg("请确保：")
-			log.Error().Msg("1. 已以管理员身份运行程序")
-			log.Error().Msg("2. 微信版本兼容（当前支持4.x版本）")
-			log.Error().Msg("3. 在微信中执行了触发操作")
-			log.Error().Msg("4. wx_key.dll与微信版本匹配")
+			log.Error().Msg("密钥获取超时！(DLL POLL TIMEOUT)")
+			log.Error().Msg("💡 此错误通常意味着 Hook 已经安装，但在 60 秒内没有捕捉到任何有效的解密动作。")
+			log.Error().Msg("💡 如果你已经进行了聊天操作但仍然超时，请尝试在微信中切换账号或重新登录。")
+
+			if !util.IsElevated() {
+				log.Warn().Msg("⚠️ 检测到当前未以管理员权限运行，这可能是 Hook 监听失效的主要原因！")
+			}
+
+			// 在超时前最后获取一次状态信息
+			lastMsgs := e.getStatusMessages()
+			for _, m := range lastMsgs {
+				log.Info().Str("last_msg", m.Message).Int("level", m.Level).Msg("DLL 最后的内部状态报告")
+			}
 			return "", "", errors.ErrDllPollTimeout
 		case <-time.After(pollInterval):
 			// 轮询获取状态信息
 			statusMessages := e.getStatusMessages()
 			for _, msg := range statusMessages {
-				logLevel := log.Debug()
-				switch msg.Level {
-				case 1: // Success
-					logLevel = log.Info()
-				case 2: // Error
+				logLevel := log.Info()
+				if msg.Level == 2 {
 					logLevel = log.Error()
 				}
-				logLevel.Msg(msg.Message)
+				logLevel.Str("dll_msg", msg.Message).Int("level", msg.Level).Msg("来自 wx_key.dll 的消息")
+			}
+
+			// 每10秒打印一次心跳
+			if time.Since(lastHeartbeat) > 10*time.Second {
+				log.Info().Msg("⏱️  正在持续监听密钥触发操作...")
+				lastHeartbeat = time.Now()
 			}
 
 			// 轮询获取密钥
-			if e.pollKeyData(keyBuf) {
+			ok := e.pollKeyData(keyBuf)
+			if ok {
+				log.Info().Msg("✨ wx_key.dll 报告已成功捕获到密钥数据！")
 				// 查找字符串结束符
 				endIndex := 0
 				for i, b := range keyBuf {
@@ -319,18 +341,18 @@ func (e *WxKeyDllExtractor) pollKeys(ctx context.Context) (string, string, error
 
 				// 提取有效的HEX字符串
 				keyHex := string(keyBuf[:endIndex])
-				log.Debug().Str("key", keyHex).Msg("从wx_key.dll获取到密钥")
+				log.Info().Str("key", keyHex).Msg("从wx_key.dll获取到密钥")
 
 				// 验证密钥格式
 				if len(keyHex) != 64 && len(keyHex) != 32 {
-					log.Debug().Msgf("密钥长度不正确，期望32或64个字符，实际获取到%d个字符", len(keyHex))
+					log.Warn().Msgf("密钥长度不正确，期望32或64个字符，实际获取到%d个字符", len(keyHex))
 					continue
 				}
 
 				// 验证密钥
 				keyBytes, err := hex.DecodeString(keyHex)
 				if err != nil {
-					log.Debug().Err(err).Msg("密钥格式错误")
+					log.Error().Err(err).Msg("获取到的密钥不是有效的HEX字符串")
 					continue
 				}
 
@@ -340,6 +362,16 @@ func (e *WxKeyDllExtractor) pollKeys(ctx context.Context) (string, string, error
 					isValid := e.validator.Validate(keyBytes)
 					if isValid {
 						log.Info().Msg("✓ 成功获取并验证数据库密钥！")
+
+						// 如果之前是 unknown_wechat，且验证成功，说明此时 validatorDataDir 是正确的
+						if proc.AccountName == "" || proc.AccountName == "unknown_wechat" || strings.Contains(proc.AccountName, "unknown_wechat") {
+							// 从路径中提取可能的账号名
+							accountName := filepath.Base(validatorDataDir)
+							if accountName != "" && accountName != "unknown_wechat" && accountName != "xwechat_files" {
+								proc.AccountName = accountName
+								log.Info().Str("newName", proc.AccountName).Msg("验证成功，根据路径修正账号名")
+							}
+						}
 					} else {
 						log.Warn().Str("key", keyHex).Msg("⚠️ 获取到数据库密钥，但在当前数据目录下验证失败（可能是数据目录检测错误），将尝试直接只用该密钥")
 					}
@@ -370,16 +402,16 @@ func (e *WxKeyDllExtractor) pollKeyData(keyBuf []byte) bool {
 		return false
 	}
 
-	// 调用DLL函数获取密钥
+	// 调用DLL函数获取密钥 (通常只接受缓冲区指针)
 	ret, _, err := syscall.SyscallN(
 		e.pollKeyDataPtr,
 		uintptr(unsafe.Pointer(&keyBuf[0])),
-		uintptr(len(keyBuf)),
 	)
 
 	// 检查返回值
 	if ret == 0 {
-		log.Debug().Err(err).Msg("从wx_key.dll获取密钥失败")
+		// 这里不打日志，因为轮询过程中ret通常为0
+		_ = err
 		return false
 	}
 

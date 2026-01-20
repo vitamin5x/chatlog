@@ -39,6 +39,7 @@ type Context struct {
 	ImgKey      string
 	ImageAESKey string
 	ImageXORKey string
+	ScanDir     string
 
 	// 工作目录相关状态
 	WorkDir   string
@@ -181,16 +182,25 @@ func (c *Context) SwitchCurrent(info *wechat.Account) {
 	c.Current = info
 
 	// 加载历史记录（如果有）
-	if history, ok := c.History[info.Name]; ok {
+	history, ok := c.History[info.Name]
+	if !ok && info.DataDir != "" {
+		log.Debug().Str("dataDir", info.DataDir).Msg("尝试按数据目录查找历史记录")
+		for _, h := range c.History {
+			if h.DataDir == info.DataDir && h.DataDir != "" {
+				history = h
+				ok = true
+				log.Debug().Str("account", h.Account).Msg("找到匹配数据目录的历史记录")
+				break
+			}
+		}
+	}
+
+	if ok {
 		log.Debug().Str("account", info.Name).Msg("找到账号的历史记录，使用历史配置")
 		c.loadHistory(history)
-		// 如果历史记录的数据目录不完整，使用当前账号的数据目录
-		if history.DataDir == "" || history.DataDir == "unknown_wechat" || strings.Contains(history.DataDir, "unknown_wechat") {
-			log.Debug().Str("oldDataDir", history.DataDir).Msg("历史记录数据目录不完整")
-		}
 	} else {
 		log.Debug().Str("account", info.Name).Msg("未找到账号的历史记录")
-		// 如果是新的有效账号（非unknown），且不在历史记录中，应该清除之前的账号信息
+		// 如果是新的账号（非空），且不在历史记录中，清除旧的上下文信息
 		if info.Name != "" && info.Name != "unknown_wechat" && !strings.Contains(info.Name, "unknown_wechat") {
 			log.Info().Str("account", info.Name).Msg("切换到新的未知账号，清除旧的上下文信息")
 			c.clearAccountInfo()
@@ -224,13 +234,16 @@ func (c *Context) SwitchCurrent(info *wechat.Account) {
 }
 func (c *Context) Refresh() {
 	if c.Current != nil {
-		c.Account = c.Current.Name
+		if c.Current.Name != "" && c.Current.Name != "unknown_wechat" && !strings.Contains(c.Current.Name, "unknown_wechat") {
+			c.Account = c.Current.Name
+		}
 		c.Platform = c.Current.Platform
 		c.Version = c.Current.Version
 		c.FullVersion = c.Current.FullVersion
 		c.PID = int(c.Current.PID)
 		c.ExePath = c.Current.ExePath
 		c.Status = c.Current.Status
+		c.Current.ScanDir = c.ScanDir
 		if c.Current.Key != "" && c.Current.Key != c.DataKey {
 			c.DataKey = c.Current.Key
 		}
@@ -255,9 +268,25 @@ func (c *Context) Refresh() {
 				oldDataDir := c.DataDir
 				c.DataDir = c.Current.DataDir
 				log.Debug().Str("oldDataDir", oldDataDir).Str("newDataDir", c.DataDir).Msg("从当前账号更新数据目录")
+
+				// 更新扫描目录为数据目录的父目录
+				if c.DataDir != "" {
+					parentDir := filepath.Dir(c.DataDir)
+					if parentDir != "." && parentDir != "/" && parentDir != "\\" {
+						c.ScanDir = parentDir
+						log.Debug().Str("newScanDir", c.ScanDir).Msg("根据数据目录自动更新扫描目录")
+					}
+				}
 			}
 		}
 	}
+
+	// 如果工作目录为空且已经有了账号信息，设置默认工作目录
+	if c.WorkDir == "" && c.Account != "" && c.Account != "unknown_wechat" && !strings.Contains(c.Account, "unknown_wechat") {
+		c.WorkDir = util.DefaultWorkDir(c.Account)
+		log.Debug().Str("workDir", c.WorkDir).Msg("设置默认工作目录")
+	}
+
 	if c.DataUsage == "" && c.DataDir != "" {
 		go func() {
 			c.DataUsage = util.GetDirSize(c.DataDir)
@@ -290,6 +319,10 @@ func (c *Context) GetDataDir() string {
 	return ""
 }
 
+func (c *Context) GetScanDir() string {
+	return c.ScanDir
+}
+
 func (c *Context) GetWorkDir() string {
 	return c.WorkDir
 }
@@ -315,6 +348,16 @@ func (c *Context) GetHTTPAddr() string {
 
 func (c *Context) GetWebhook() *conf.Webhook {
 	return c.conf.Webhook
+}
+
+func (c *Context) SetScanDir(dir string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.ScanDir == dir {
+		return
+	}
+	c.ScanDir = dir
+	c.UpdateConfig()
 }
 
 func (c *Context) SetHTTPEnabled(enabled bool) {

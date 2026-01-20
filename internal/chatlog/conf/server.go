@@ -12,6 +12,7 @@ type ServerConfig struct {
 	DataDir     string   `mapstructure:"data_dir"`
 	DataKey     string   `mapstructure:"data_key"`
 	ImgKey      string   `mapstructure:"img_key"`
+	ScanDir     string   `mapstructure:"scan_dir"`
 	ImageAESKey string   `mapstructure:"image_aes_key"`
 	ImageXORKey string   `mapstructure:"image_xor_key"`
 	WorkDir     string   `mapstructure:"work_dir"`
@@ -28,6 +29,10 @@ func (c *ServerConfig) GetDataDir() string {
 
 func (c *ServerConfig) GetWorkDir() string {
 	return c.WorkDir
+}
+
+func (c *ServerConfig) GetScanDir() string {
+	return c.ScanDir
 }
 
 func (c *ServerConfig) GetPlatform() string {

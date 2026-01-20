@@ -4,6 +4,7 @@ type TUIConfig struct {
 	ConfigDir   string          `mapstructure:"-" json:"config_dir"`
 	LastAccount string          `mapstructure:"last_account" json:"last_account"`
 	History     []ProcessConfig `mapstructure:"history" json:"history"`
+	ScanDir     string          `mapstructure:"scan_dir" json:"scan_dir"`
 	Webhook     *Webhook        `mapstructure:"webhook" json:"webhook"`
 }
 

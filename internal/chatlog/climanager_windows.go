@@ -29,7 +29,7 @@ var (
 )
 
 // 自动重启微信获取密钥的超时时间
-const autoWeChatTimeout = 60 * time.Second
+const autoWeChatTimeout = 70 * time.Second
 
 // autoGetDataKeyOnWindows 自动重启微信获取密钥
 func (m *CliManager) autoGetDataKeyOnWindows() error {
@@ -97,37 +97,39 @@ func (m *CliManager) autoGetDataKeyOnWindows() error {
 
 	for time.Since(loginStartTime) < autoWeChatTimeout {
 		// 1. 检查当前账号信息是否完整
-		if m.ctx.Current.Name == "" || m.ctx.Current.Name == "unknown_wechat" || m.ctx.Current.DataDir == "" {
-			// 刷新实例列表
-			m.ctx.WeChatInstances = m.wechat.GetWeChatInstances()
-			// 更新当前实例
-			found := false
-			for _, ins := range m.ctx.WeChatInstances {
-				if ins.PID == m.ctx.Current.PID {
-					// 只有当检测到有效信息时才更新
-					if ins.Name != "" && ins.Name != "unknown_wechat" && ins.DataDir != "" {
-						m.ctx.Current = ins
-						log.Info().Str("account", ins.Name).Str("dataDir", ins.DataDir).Msg("检测到有效的微信账号信息")
-					}
-					found = true
-					break
-				}
-			}
+		isAccountIncomplete := m.ctx.Current.Name == "" || m.ctx.Current.Name == "unknown_wechat" || m.ctx.Current.DataDir == ""
 
-			// 如果进程都找不到了（可能崩溃或手动关闭），退出
-			if !found {
-				log.Warn().Msg("微信进程已退出")
+		// 刷新实例列表
+		m.ctx.WeChatInstances = m.wechat.GetWeChatInstances()
+		// 更新当前实例
+		found := false
+		for _, ins := range m.ctx.WeChatInstances {
+			if ins.PID == m.ctx.Current.PID {
+				// 即使信息不完整，只要进程还在，我们就继续
+				if isAccountIncomplete && (ins.Name != "" && ins.Name != "unknown_wechat" && ins.DataDir != "") {
+					m.ctx.Current = ins
+					log.Info().Str("account", ins.Name).Str("dataDir", ins.DataDir).Msg("检测到有效的微信账号信息，已同步更新")
+					isAccountIncomplete = false
+				}
+				found = true
 				break
 			}
+		}
 
-			// 如果信息仍然不完整，继续等待
-			if m.ctx.Current.Name == "" || m.ctx.Current.Name == "unknown_wechat" || m.ctx.Current.DataDir == "" {
-				if time.Since(loginStartTime)%5 == 0 { // 减少日志频率
-					log.Info().Msg("正在等待账号登录及数据目录生成...")
-				}
-				time.Sleep(1 * time.Second)
-				continue
+		// 如果进程都找不到了（可能崩溃或手动关闭），退出
+		if !found {
+			log.Warn().Msg("微信进程已退出，终止获取密钥流程")
+			break
+		}
+
+		// 改进：对于版本 4.0 且 PID 已确认的情况，即便账号信息尚不完全，也允许进入密钥捕获阶段
+		// 之前的逻辑这里会 continue，导致如果探测一直识别为 unknown_wechat 就会死循环
+		if isAccountIncomplete && m.ctx.Version != 4 {
+			if time.Since(loginStartTime)%5 == 0 {
+				log.Info().Msg("正在等待账号登录及数据目录生成...")
 			}
+			time.Sleep(1 * time.Second)
+			continue
 		}
 
 		// 2. 信息完整，等待窗口就绪
@@ -240,7 +242,8 @@ func waitForWeChatWindow(pid uint32, timeout time.Duration) error {
 						buf := make([]uint16, len+1)
 						procGetWindowTextW.Call(uintptr(hwnd), uintptr(unsafe.Pointer(&buf[0])), uintptr(len+1))
 						title := syscall.UTF16ToString(buf)
-						if title == "微信" || title == "WeChat" {
+						lowerTitle := strings.ToLower(title)
+						if strings.Contains(lowerTitle, "微信") || strings.Contains(lowerTitle, "weixin") || strings.Contains(lowerTitle, "wechat") {
 							found = true
 							return 0 // Stop enumeration
 						}

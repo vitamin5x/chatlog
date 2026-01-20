@@ -13,6 +13,7 @@ type Manager interface {
 	DecryptDBFiles() error
 	StartAutoDecrypt() error
 	StopAutoDecrypt() error
+	SetScanDir(dir string) error
 	RefreshSession() error
 	CommandKey(configPath string, pid int, force bool, showXorKey bool) (string, error)
 	CommandDecrypt(configPath string, cmdConf map[string]any) error

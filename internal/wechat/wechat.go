@@ -25,6 +25,7 @@ type Account struct {
 	ImgKey      string
 	ImageAESKey string
 	ImageXORKey string
+	ScanDir     string
 	PID         uint32
 	ExePath     string
 	Status      string
@@ -181,9 +182,12 @@ func (a *Account) GetKey(ctx context.Context) (string, string, error) {
 	if validatorDataDir == "" && a.Platform == "windows" && a.Version == 4 {
 		// 微信4.0版本的默认数据目录路径格式：C:\Users\用户名\xwechat_files\账号名
 		if homeDir, err := os.UserHomeDir(); err == nil {
-			xwechatFilesDir := filepath.Join(homeDir, "xwechat_files")
+			xwechatFilesDir := a.ScanDir
+			if xwechatFilesDir == "" {
+				xwechatFilesDir = filepath.Join(homeDir, "xwechat_files")
+			}
 
-			// 尝试查找xwechat_files目录中的真实微信账号名目录
+			// 尝试查找扫描目录中的真实微信账号名目录
 			realAccountName := ""
 			var dataDirs []string // 存储所有可能的数据目录
 
@@ -278,11 +282,17 @@ func (a *Account) GetKey(ctx context.Context) (string, string, error) {
 			// 构建数据目录
 			if realAccountName != "" {
 				// 如果找到了真实账号名，优先使用它
-				validatorDataDir = filepath.Join(homeDir, "xwechat_files", realAccountName)
+				validatorDataDir = filepath.Join(xwechatFilesDir, realAccountName)
 				log.Debug().Str("realAccountName", realAccountName).Str("defaultDataDir", validatorDataDir).Msg("使用真实账号名构建微信数据目录")
+
+				// 如果当前账号名是 unknown_wechat，更新为真实账号名
+				if a.Name == "" || a.Name == "unknown_wechat" || strings.Contains(a.Name, "unknown_wechat") {
+					a.Name = realAccountName
+					log.Info().Str("newName", a.Name).Msg("探测到真实账号名，更新账号信息")
+				}
 			} else if accountName != "" && accountName != "unknown_wechat" {
 				// 如果没有找到真实账号名，但当前账号名有效，使用当前账号名
-				validatorDataDir = filepath.Join(homeDir, "xwechat_files", accountName)
+				validatorDataDir = filepath.Join(xwechatFilesDir, accountName)
 				log.Debug().Str("accountName", accountName).Str("defaultDataDir", validatorDataDir).Msg("使用当前账号名构建微信数据目录")
 			} else if len(dataDirs) > 0 {
 				// 如果以上都失败，使用第一个找到的数据目录
@@ -298,10 +308,14 @@ func (a *Account) GetKey(ctx context.Context) (string, string, error) {
 	if strings.Contains(validatorDataDir, "unknown_wechat") {
 		log.Debug().Str("validatorDataDir", validatorDataDir).Msg("数据目录中包含unknown_wechat，尝试替换为真实的微信账号名")
 
-		// 查找xwechat_files目录中的真实微信账号名目录
+		// 查找扫描目录中的真实微信账号名目录
 		if homeDir, err := os.UserHomeDir(); err == nil {
-			xwechatFilesDir := filepath.Join(homeDir, "xwechat_files")
+			xwechatFilesDir := a.ScanDir
+			if xwechatFilesDir == "" {
+				xwechatFilesDir = filepath.Join(homeDir, "xwechat_files")
+			}
 			if entries, err := os.ReadDir(xwechatFilesDir); err == nil {
+				// ... (same loop as before but with xwechatFilesDir)
 				for _, entry := range entries {
 					if entry.IsDir() {
 						entryName := entry.Name()

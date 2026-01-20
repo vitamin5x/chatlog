@@ -59,6 +59,12 @@ func (v *Validator) ValidateImgKey(key []byte) bool {
 	return v.imgKeyValidator.Validate(key)
 }
 
+func (v *Validator) GetDataDir() string {
+	// dbPath 类似于 C:\...\xwechat_files\Account\db_storage\message\message_0.db
+	// 我们需要返回 C:\...\xwechat_files\Account
+	return filepath.Dir(filepath.Dir(filepath.Dir(v.dbPath)))
+}
+
 func GetSimpleDBFile(platform string, version int) string {
 	switch {
 	case platform == "windows" && version == 3:

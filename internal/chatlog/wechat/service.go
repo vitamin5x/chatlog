@@ -37,6 +37,7 @@ type Config interface {
 	GetWorkDir() string
 	GetPlatform() string
 	GetVersion() int
+	GetScanDir() string
 }
 
 func NewService(conf Config) *Service {
@@ -59,6 +60,7 @@ func (s *Service) GetDataKey(info *wechat.Account) (string, error) {
 		return "", fmt.Errorf("no WeChat instance selected")
 	}
 
+	info.ScanDir = s.conf.GetScanDir()
 	key, _, err := info.GetKey(context.Background())
 	if err != nil {
 		return "", err
@@ -73,6 +75,7 @@ func (s *Service) GetImageKey(info *wechat.Account) (string, string, error) {
 		return "", "", fmt.Errorf("no WeChat instance selected")
 	}
 
+	info.ScanDir = s.conf.GetScanDir()
 	key, xorKey, err := info.GetImageKey(context.Background())
 	if err != nil {
 		return "", "", err

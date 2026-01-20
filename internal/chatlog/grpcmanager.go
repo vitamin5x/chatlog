@@ -176,6 +176,11 @@ func (m *GRPCManager) SetHTTPAddr(text string) error {
 	return nil
 }
 
+func (m *GRPCManager) SetScanDir(dir string) error {
+	m.ctx.SetScanDir(dir)
+	return nil
+}
+
 func (m *GRPCManager) GetImageKey() error {
 	return fmt.Errorf("getting image key is not supported in gRPC mode")
 }

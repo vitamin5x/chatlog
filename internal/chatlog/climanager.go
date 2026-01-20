@@ -177,6 +177,11 @@ func (m *CliManager) SetHTTPAddr(text string) error {
 	return nil
 }
 
+func (m *CliManager) SetScanDir(dir string) error {
+	m.ctx.SetScanDir(dir)
+	return nil
+}
+
 func (m *CliManager) GetDataKey() error {
 	// 添加详细的日志记录
 	log.Debug().Bool("hasCurrent", m.ctx.Current != nil).Str("os", runtime.GOOS).Msg("GetDataKey 方法开始执行")

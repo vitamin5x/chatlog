@@ -536,6 +536,11 @@ func (a *App) settingSelected(i *menu.Item) {
 			description: "配置微信数据文件所在目录",
 			action:      a.settingDataDir,
 		},
+		{
+			name:        "设置微信扫描目录",
+			description: "配置微信账号数据的搜索根目录",
+			action:      a.settingScanDir,
+		},
 	}
 
 	subMenu := menu.NewSubMenu("设置")
@@ -921,6 +926,30 @@ func (a *App) settingImageXORKey() {
 		a.ctx.SetImageXORKey(tempKey)
 		a.mainPages.RemovePage("submenu2")
 		a.showInfo("图片 XOR 密钥已设置")
+	})
+
+	formView.AddButton("取消", func() {
+		a.mainPages.RemovePage("submenu2")
+	})
+
+	a.mainPages.AddPage("submenu2", formView, true, true)
+	a.SetFocus(formView)
+}
+
+// settingScanDir 设置微信扫描目录
+func (a *App) settingScanDir() {
+	formView := form.NewForm("设置微信扫描目录")
+
+	tempDir := a.ctx.ScanDir
+
+	formView.AddInputField("扫描目录", tempDir, 0, nil, func(text string) {
+		tempDir = text
+	})
+
+	formView.AddButton("保存", func() {
+		a.m.SetScanDir(tempDir)
+		a.mainPages.RemovePage("submenu2")
+		a.showInfo("微信扫描目录已设置")
 	})
 
 	formView.AddButton("取消", func() {
