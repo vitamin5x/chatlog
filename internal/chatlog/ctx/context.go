@@ -518,6 +518,15 @@ func (c *Context) UpdateConfig() {
 		return
 	}
 
+	// 保存 Webhook 配置（如果存在）
+	if c.conf.Webhook != nil {
+		// 强制将内存中的 Webhook 配置写入配置文件
+		if err := c.cm.SetConfig("webhook", c.conf.Webhook); err != nil {
+			log.Error().Err(err).Msg("set webhook failed")
+			// 不 return，确保其他配置仍能保存
+		}
+	}
+
 	// 在数据目录中保存配置文件
 	if len(pconf.DataDir) != 0 {
 		if b, err := json.Marshal(pconf); err == nil {
