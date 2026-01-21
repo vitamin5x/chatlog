@@ -59,6 +59,8 @@ func (s *Service) initAPIRouter() {
 		api.GET("/contact", s.handleContacts)
 		api.GET("/chatroom", s.handleChatRooms)
 		api.GET("/session", s.handleSessions)
+		api.GET("/accounts", s.handleGetAccounts)
+		api.PUT("/webhook/talker", s.handleUpdateWebhookTalker)
 	}
 }
 

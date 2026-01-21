@@ -50,7 +50,7 @@ func (m *GRPCManager) Run(configPath string) error {
 
 	m.db = database.NewService(m.ctx)
 
-	m.http = http.NewService(m.ctx, m.db)
+	m.http = http.NewService(m.ctx, m.db, m.ctx)
 
 	m.ctx.WeChatInstances = m.wechat.GetWeChatInstances()
 	if len(m.ctx.WeChatInstances) >= 1 {
@@ -488,7 +488,7 @@ func (m *GRPCManager) CommandHTTPServer(configPath string, cmdConf map[string]an
 
 	m.db = database.NewService(m.sc)
 
-	m.http = http.NewService(m.sc, m.db)
+	m.http = http.NewService(m.sc, m.db, m.ctx)
 
 	if m.sc.GetAutoDecrypt() {
 		if err := m.wechat.StartAutoDecrypt(); err != nil {

@@ -350,6 +350,10 @@ func (c *Context) GetWebhook() *conf.Webhook {
 	return c.conf.Webhook
 }
 
+func (c *Context) GetWeChatInstances() []*wechat.Account {
+	return c.WeChatInstances
+}
+
 func (c *Context) SetScanDir(dir string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()

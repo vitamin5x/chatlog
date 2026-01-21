@@ -9,13 +9,16 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/rs/zerolog/log"
 
+	"github.com/sjzar/chatlog/internal/chatlog/conf"
 	"github.com/sjzar/chatlog/internal/chatlog/database"
 	"github.com/sjzar/chatlog/internal/errors"
+	"github.com/sjzar/chatlog/internal/wechat"
 )
 
 type Service struct {
 	conf Config
 	db   *database.Service
+	ctx  ContextProvider
 
 	router *gin.Engine
 	server *http.Server
@@ -30,7 +33,13 @@ type Config interface {
 	GetDataDir() string
 }
 
-func NewService(conf Config, db *database.Service) *Service {
+type ContextProvider interface {
+	GetWebhook() *conf.Webhook
+	GetWeChatInstances() []*wechat.Account
+	UpdateConfig()
+}
+
+func NewService(conf Config, db *database.Service, ctx ContextProvider) *Service {
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
 
@@ -50,6 +59,7 @@ func NewService(conf Config, db *database.Service) *Service {
 	s := &Service{
 		conf:   conf,
 		db:     db,
+		ctx:    ctx,
 		router: router,
 	}
 
