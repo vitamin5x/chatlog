@@ -64,6 +64,15 @@ func (m *CliManager) Run(configPath string) error {
 			m.StopService()
 		}
 	}
+
+	if m.ctx.AutoDecrypt {
+		// 启动自动解密
+		if err := m.StartAutoDecrypt(); err != nil {
+			log.Info().Err(err).Msg("启动自动解密失败")
+			m.StopAutoDecrypt()
+		}
+	}
+
 	// 启动终端UI
 	m.app = NewApp(m.ctx, m)
 	m.app.Run() // 阻塞
@@ -92,6 +101,14 @@ func (m *CliManager) Switch(info *iwechat.Account, history string) error {
 		if err := m.StartService(); err != nil {
 			log.Info().Err(err).Msg("启动服务失败")
 			m.StopService()
+		}
+	}
+
+	if m.ctx.AutoDecrypt {
+		// 启动自动解密
+		if err := m.StartAutoDecrypt(); err != nil {
+			log.Info().Err(err).Msg("启动自动解密失败")
+			m.StopAutoDecrypt()
 		}
 	}
 	return nil

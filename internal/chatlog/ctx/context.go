@@ -155,6 +155,7 @@ func (c *Context) loadHistory(history conf.ProcessConfig) {
 	c.WorkDir = history.WorkDir
 	c.HTTPEnabled = history.HTTPEnabled
 	c.HTTPAddr = history.HTTPAddr
+	c.AutoDecrypt = history.AutoDecrypt
 }
 
 // clearAccountInfo 清除账号信息
@@ -171,6 +172,7 @@ func (c *Context) clearAccountInfo() {
 	c.WorkDir = ""
 	c.HTTPEnabled = false
 	c.HTTPAddr = ""
+	c.AutoDecrypt = false
 }
 
 func (c *Context) SwitchCurrent(info *wechat.Account) {
@@ -475,6 +477,7 @@ func (c *Context) UpdateConfig() {
 		WorkDir:     c.WorkDir,
 		HTTPEnabled: c.HTTPEnabled,
 		HTTPAddr:    c.HTTPAddr,
+		AutoDecrypt: c.AutoDecrypt,
 		LastTime:    time.Now().Unix(),
 	}
 
