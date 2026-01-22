@@ -62,10 +62,7 @@ func (s *Service) handleUpdateWebhookTalker(c *gin.Context) {
 		return
 	}
 
-	if req.Talker == "" {
-		errors.Err(c, errors.InvalidArg("talker cannot be empty"))
-		return
-	}
+	
 
 	webhook := s.ctx.GetWebhook()
 	if webhook == nil || len(webhook.Items) == 0 {
