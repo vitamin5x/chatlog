@@ -12,8 +12,8 @@ import (
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sys/windows"
 
-	"github.com/sjzar/chatlog/internal/errors"
-	"github.com/sjzar/chatlog/internal/wechat/model"
+	"github.com/vitamin5x/chatlog/internal/errors"
+	"github.com/vitamin5x/chatlog/internal/wechat/model"
 )
 
 const (
@@ -278,3 +278,4 @@ func (e *V4Extractor) validateKey(handle windows.Handle, addr uint64) (string, b
 
 	return "", false
 }
+

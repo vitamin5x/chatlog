@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/rs/zerolog/log"
-	"github.com/sjzar/chatlog/pkg/config"
+	"github.com/vitamin5x/chatlog/pkg/config"
 )
 
 const (
@@ -106,3 +106,4 @@ var DataDirConfigs = map[string]bool{
 	"image_xor_key": true,
 	"work_dir":      true,
 }
+

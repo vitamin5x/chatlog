@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/sjzar/chatlog/internal/errors"
+	"github.com/vitamin5x/chatlog/internal/errors"
 )
 
 const (
@@ -184,3 +184,4 @@ func parseSize(sizeStr string) uint64 {
 	// Calculate final size in bytes (rounding to nearest integer)
 	return uint64(numVal*float64(multiplier) + 0.5)
 }
+

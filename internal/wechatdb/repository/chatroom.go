@@ -7,8 +7,8 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	"github.com/sjzar/chatlog/internal/errors"
-	"github.com/sjzar/chatlog/internal/model"
+	"github.com/vitamin5x/chatlog/internal/errors"
+	"github.com/vitamin5x/chatlog/internal/model"
 )
 
 // initChatRoomCache 初始化群聊缓存
@@ -225,3 +225,4 @@ func (r *Repository) findChatRooms(key string) []*model.ChatRoom {
 
 	return ret
 }
+

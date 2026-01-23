@@ -7,8 +7,8 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	"github.com/sjzar/chatlog/internal/errors"
-	"github.com/sjzar/chatlog/internal/model"
+	"github.com/vitamin5x/chatlog/internal/errors"
+	"github.com/vitamin5x/chatlog/internal/model"
 )
 
 // initContactCache 初始化联系人缓存
@@ -253,3 +253,4 @@ func (r *Repository) getFullContact(userName string) *model.Contact {
 
 	return nil
 }
+

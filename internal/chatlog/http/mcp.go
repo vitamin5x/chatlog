@@ -11,10 +11,10 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/rs/zerolog/log"
 
-	"github.com/sjzar/chatlog/internal/chatlog/conf"
-	"github.com/sjzar/chatlog/internal/errors"
-	"github.com/sjzar/chatlog/pkg/util"
-	"github.com/sjzar/chatlog/pkg/version"
+	"github.com/vitamin5x/chatlog/internal/chatlog/conf"
+	"github.com/vitamin5x/chatlog/internal/errors"
+	"github.com/vitamin5x/chatlog/pkg/util"
+	"github.com/vitamin5x/chatlog/pkg/version"
 )
 
 func (s *Service) initMCPServer() {
@@ -326,3 +326,4 @@ func (s *Service) handleMCPCurrentTime(ctx context.Context, request mcp.CallTool
 		},
 	}, nil
 }
+

@@ -3,7 +3,7 @@ package chatlog
 import (
 	"fmt"
 
-	"github.com/sjzar/chatlog/internal/chatlog"
+	"github.com/vitamin5x/chatlog/internal/chatlog"
 
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -61,3 +61,4 @@ func getDecryptConfig() map[string]any {
 	}
 	return cmdConf
 }
+

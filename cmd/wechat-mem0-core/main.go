@@ -8,7 +8,7 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"github.com/sjzar/chatlog/internal/chatlog"
+	"github.com/vitamin5x/chatlog/internal/chatlog"
 )
 
 func initLog(debug bool, miscDir string) {
@@ -194,3 +194,4 @@ mediaPath := os.Getenv("IMAGE_MEDIA_FILE_PATH")
 		log.Info().Str("ddl", ddl).Msg("generated ddl")
 	*/
 }
+

@@ -6,7 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
 
-	"github.com/sjzar/chatlog/internal/errors"
+	"github.com/vitamin5x/chatlog/internal/errors"
 )
 
 // handleGetAccounts 获取微信账号列表
@@ -114,3 +114,4 @@ func (s *Service) handleUpdateWebhookTalker(c *gin.Context) {
 		"new_talker": req.Talker,
 	})
 }
+

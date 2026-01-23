@@ -15,10 +15,10 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/rs/zerolog/log"
 
-	"github.com/sjzar/chatlog/internal/errors"
-	"github.com/sjzar/chatlog/internal/model"
-	"github.com/sjzar/chatlog/internal/wechatdb/datasource/dbm"
-	"github.com/sjzar/chatlog/pkg/util"
+	"github.com/vitamin5x/chatlog/internal/errors"
+	"github.com/vitamin5x/chatlog/internal/model"
+	"github.com/vitamin5x/chatlog/internal/wechatdb/datasource/dbm"
+	"github.com/vitamin5x/chatlog/pkg/util"
 )
 
 const (
@@ -778,3 +778,4 @@ func (ds *DataSource) GetVoice(ctx context.Context, key string) (*model.Media, e
 func (ds *DataSource) Close() error {
 	return ds.dbm.Close()
 }
+

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/sjzar/chatlog/internal/ui/style"
+	"github.com/vitamin5x/chatlog/internal/ui/style"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -160,3 +160,4 @@ func (l SortItems) Less(i, j int) bool {
 func (l SortItems) Swap(i, j int) {
 	l[i], l[j] = l[j], l[i]
 }
+

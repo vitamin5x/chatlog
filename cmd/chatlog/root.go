@@ -1,7 +1,7 @@
 package chatlog
 
 import (
-	"github.com/sjzar/chatlog/internal/chatlog"
+	"github.com/vitamin5x/chatlog/internal/chatlog"
 
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -40,3 +40,4 @@ func Root(cmd *cobra.Command, args []string) {
 		log.Err(err).Msg("failed to run chatlog instance")
 	}
 }
+

@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/sjzar/chatlog/pkg/util"
+	"github.com/vitamin5x/chatlog/pkg/util"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -52,3 +52,4 @@ func initTuiLog(cmd *cobra.Command, args []string) {
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: logOutput, NoColor: true, TimeFormat: time.RFC3339})
 	logrus.SetOutput(logOutput)
 }
+

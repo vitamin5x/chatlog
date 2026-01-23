@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sjzar/chatlog/internal/model"
-	"github.com/sjzar/chatlog/pkg/util"
+	"github.com/vitamin5x/chatlog/internal/model"
+	"github.com/vitamin5x/chatlog/pkg/util"
 
 	"github.com/rs/zerolog/log"
 )
@@ -109,3 +109,4 @@ func (r *Repository) parseTalkerAndSender(ctx context.Context, talker, sender st
 
 	return talker, sender
 }
+

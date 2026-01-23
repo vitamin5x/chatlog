@@ -1,9 +1,9 @@
 package process
 
 import (
-	"github.com/sjzar/chatlog/internal/wechat/model"
-	"github.com/sjzar/chatlog/internal/wechat/process/darwin"
-	"github.com/sjzar/chatlog/internal/wechat/process/windows"
+	"github.com/vitamin5x/chatlog/internal/wechat/model"
+	"github.com/vitamin5x/chatlog/internal/wechat/process/darwin"
+	"github.com/vitamin5x/chatlog/internal/wechat/process/windows"
 )
 
 type Detector interface {
@@ -34,3 +34,4 @@ func (d *nullDetector) FindProcesses() ([]*model.Process, error) {
 func (d *nullDetector) GetProcessInfo(pid uint32) (*model.Process, error) {
 	return nil, nil
 }
+

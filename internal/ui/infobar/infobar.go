@@ -3,7 +3,7 @@ package infobar
 import (
 	"fmt"
 
-	"github.com/sjzar/chatlog/internal/ui/style"
+	"github.com/vitamin5x/chatlog/internal/ui/style"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -247,3 +247,4 @@ func (info *InfoBar) Draw(screen tcell.Screen) {
 	info.table.SetBorder(false)
 	info.table.Draw(screen)
 }
+

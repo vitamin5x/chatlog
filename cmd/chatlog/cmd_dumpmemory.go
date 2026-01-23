@@ -12,8 +12,8 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 
-	"github.com/sjzar/chatlog/internal/wechat"
-	"github.com/sjzar/chatlog/internal/wechat/key/darwin/glance"
+	"github.com/vitamin5x/chatlog/internal/wechat"
+	"github.com/vitamin5x/chatlog/internal/wechat/key/darwin/glance"
 )
 
 func init() {
@@ -144,3 +144,4 @@ var dumpmemoryCmd = &cobra.Command{
 		log.Info().Msgf("package success, please send %s to developer", zipPath)
 	},
 }
+

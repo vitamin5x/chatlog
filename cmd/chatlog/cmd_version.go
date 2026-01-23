@@ -3,7 +3,7 @@ package chatlog
 import (
 	"fmt"
 
-	"github.com/sjzar/chatlog/pkg/version"
+	"github.com/vitamin5x/chatlog/pkg/version"
 
 	"github.com/spf13/cobra"
 )
@@ -25,3 +25,4 @@ var versionCmd = &cobra.Command{
 		}
 	},
 }
+

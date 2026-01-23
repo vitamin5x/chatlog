@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sjzar/chatlog/internal/model/wxproto"
-	"github.com/sjzar/chatlog/pkg/util/zstd"
+	"github.com/vitamin5x/chatlog/internal/model/wxproto"
+	"github.com/vitamin5x/chatlog/pkg/util/zstd"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -108,3 +108,4 @@ func ParsePackedInfo(b []byte) *wxproto.PackedInfo {
 	}
 	return &pbMsg
 }
+

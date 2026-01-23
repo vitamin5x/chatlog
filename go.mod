@@ -1,4 +1,4 @@
-module github.com/sjzar/chatlog
+module github.com/vitamin5x/chatlog
 
 go 1.24.0
 

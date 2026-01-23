@@ -11,7 +11,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/sjzar/chatlog/internal/errors"
+	"github.com/vitamin5x/chatlog/internal/errors"
 )
 
 const (
@@ -136,3 +136,4 @@ func DecryptPage(pageBuf []byte, encKey []byte, macKey []byte, pageNum int64, ha
 
 	return decryptedPage, nil
 }
+

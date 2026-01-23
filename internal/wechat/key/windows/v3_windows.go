@@ -13,9 +13,9 @@ import (
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sys/windows"
 
-	"github.com/sjzar/chatlog/internal/errors"
-	"github.com/sjzar/chatlog/internal/wechat/model"
-	"github.com/sjzar/chatlog/pkg/util"
+	"github.com/vitamin5x/chatlog/internal/errors"
+	"github.com/vitamin5x/chatlog/internal/wechat/model"
+	"github.com/vitamin5x/chatlog/pkg/util"
 )
 
 const (
@@ -253,3 +253,4 @@ func FindModule(pid uint32, name string) (module windows.ModuleEntry32, isFound 
 	}
 	return module, false
 }
+

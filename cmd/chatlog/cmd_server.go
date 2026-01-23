@@ -4,7 +4,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 
-	"github.com/sjzar/chatlog/internal/chatlog"
+	"github.com/vitamin5x/chatlog/internal/chatlog"
 )
 
 func init() {
@@ -76,3 +76,4 @@ func getServerConfig() map[string]any {
 	}
 	return cmdConf
 }
+

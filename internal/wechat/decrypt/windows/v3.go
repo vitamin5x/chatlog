@@ -8,8 +8,8 @@ import (
 	"io"
 	"os"
 
-	"github.com/sjzar/chatlog/internal/errors"
-	"github.com/sjzar/chatlog/internal/wechat/decrypt/common"
+	"github.com/vitamin5x/chatlog/internal/errors"
+	"github.com/vitamin5x/chatlog/internal/wechat/decrypt/common"
 
 	"golang.org/x/crypto/pbkdf2"
 )
@@ -190,3 +190,4 @@ func (d *V3Decryptor) GetVersion() string {
 func (d *V3Decryptor) GetIterCount() int {
 	return d.iterCount
 }
+

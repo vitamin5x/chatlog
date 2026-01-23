@@ -12,10 +12,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/sjzar/chatlog/internal/errors"
-	"github.com/sjzar/chatlog/pkg/util"
-	"github.com/sjzar/chatlog/pkg/util/dat2img"
-	"github.com/sjzar/chatlog/pkg/util/silk"
+	"github.com/vitamin5x/chatlog/internal/errors"
+	"github.com/vitamin5x/chatlog/pkg/util"
+	"github.com/vitamin5x/chatlog/pkg/util/dat2img"
+	"github.com/vitamin5x/chatlog/pkg/util/silk"
 )
 
 // EFS holds embedded file system data for static assets.
@@ -437,3 +437,4 @@ func (s *Service) HandleVoice(c *gin.Context, data []byte) {
 	}
 	c.Data(http.StatusOK, "audio/mp3", out)
 }
+

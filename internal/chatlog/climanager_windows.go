@@ -14,9 +14,9 @@ import (
 	"github.com/rs/zerolog/log"
 	syswindows "golang.org/x/sys/windows"
 
-	iwechat "github.com/sjzar/chatlog/internal/wechat"
-	"github.com/sjzar/chatlog/internal/wechat/process/windows"
-	"github.com/sjzar/chatlog/pkg/util"
+	iwechat "github.com/vitamin5x/chatlog/internal/wechat"
+	"github.com/vitamin5x/chatlog/internal/wechat/process/windows"
+	"github.com/vitamin5x/chatlog/pkg/util"
 )
 
 var (
@@ -261,3 +261,4 @@ func waitForWeChatWindow(pid uint32, timeout time.Duration) error {
 	}
 	return fmt.Errorf("timeout waiting for window")
 }
+

@@ -8,10 +8,10 @@ import (
 	"strings"
 
 	"github.com/rs/zerolog/log"
-	"github.com/sjzar/chatlog/internal/wechat/decrypt"
-	"github.com/sjzar/chatlog/internal/wechat/key"
-	"github.com/sjzar/chatlog/internal/wechat/key/image"
-	"github.com/sjzar/chatlog/internal/wechat/model"
+	"github.com/vitamin5x/chatlog/internal/wechat/decrypt"
+	"github.com/vitamin5x/chatlog/internal/wechat/key"
+	"github.com/vitamin5x/chatlog/internal/wechat/key/image"
+	"github.com/vitamin5x/chatlog/internal/wechat/model"
 )
 
 // Account 表示一个微信账号
@@ -398,3 +398,4 @@ func (a *Account) DecryptDatabase(ctx context.Context, dbPath, outputPath string
 	// 解密数据库
 	return decryptor.Decrypt(ctx, dbPath, hexKey, output)
 }
+

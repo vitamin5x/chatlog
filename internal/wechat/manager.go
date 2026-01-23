@@ -7,9 +7,9 @@ import (
 	"strings"
 
 	"github.com/rs/zerolog/log"
-	"github.com/sjzar/chatlog/internal/errors"
-	"github.com/sjzar/chatlog/internal/wechat/model"
-	"github.com/sjzar/chatlog/internal/wechat/process"
+	"github.com/vitamin5x/chatlog/internal/errors"
+	"github.com/vitamin5x/chatlog/internal/wechat/model"
+	"github.com/vitamin5x/chatlog/internal/wechat/process"
 )
 
 var DefaultManager *Manager
@@ -127,3 +127,4 @@ func (m *Manager) DecryptDatabase(ctx context.Context, accountName, dbPath, outp
 	// 使用账号解密数据库
 	return account.DecryptDatabase(ctx, dbPath, outputPath)
 }
+

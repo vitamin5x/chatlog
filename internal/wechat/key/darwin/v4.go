@@ -9,10 +9,10 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	"github.com/sjzar/chatlog/internal/errors"
-	"github.com/sjzar/chatlog/internal/wechat/decrypt"
-	"github.com/sjzar/chatlog/internal/wechat/key/darwin/glance"
-	"github.com/sjzar/chatlog/internal/wechat/model"
+	"github.com/vitamin5x/chatlog/internal/errors"
+	"github.com/vitamin5x/chatlog/internal/wechat/decrypt"
+	"github.com/vitamin5x/chatlog/internal/wechat/key/darwin/glance"
+	"github.com/vitamin5x/chatlog/internal/wechat/model"
 )
 
 const (
@@ -363,3 +363,4 @@ type KeyPatternInfo struct {
 	Pattern []byte
 	Offsets []int
 }
+

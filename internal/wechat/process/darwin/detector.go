@@ -9,9 +9,9 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/shirou/gopsutil/v4/process"
 
-	"github.com/sjzar/chatlog/internal/errors"
-	"github.com/sjzar/chatlog/internal/wechat/model"
-	"github.com/sjzar/chatlog/pkg/appver"
+	"github.com/vitamin5x/chatlog/internal/errors"
+	"github.com/vitamin5x/chatlog/internal/wechat/model"
+	"github.com/vitamin5x/chatlog/pkg/appver"
 )
 
 const (
@@ -162,3 +162,4 @@ func (d *Detector) getOpenFiles(pid int) ([]string, error) {
 
 	return files, nil
 }
+

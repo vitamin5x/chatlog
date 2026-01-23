@@ -9,10 +9,10 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
-	"github.com/sjzar/chatlog/internal/chatlog/conf"
-	"github.com/sjzar/chatlog/internal/wechat"
-	"github.com/sjzar/chatlog/pkg/config"
-	"github.com/sjzar/chatlog/pkg/util"
+	"github.com/vitamin5x/chatlog/internal/chatlog/conf"
+	"github.com/vitamin5x/chatlog/internal/wechat"
+	"github.com/vitamin5x/chatlog/pkg/config"
+	"github.com/vitamin5x/chatlog/pkg/util"
 )
 
 const (
@@ -539,3 +539,4 @@ func (c *Context) UpdateConfig() {
 		}
 	}
 }
+

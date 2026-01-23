@@ -10,8 +10,8 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/rs/zerolog/log"
 
-	"github.com/sjzar/chatlog/internal/chatlog/conf"
-	"github.com/sjzar/chatlog/internal/wechatdb"
+	"github.com/vitamin5x/chatlog/internal/chatlog/conf"
+	"github.com/vitamin5x/chatlog/internal/wechatdb"
 )
 
 type Config interface {
@@ -199,3 +199,4 @@ func (m *MessageWebhook) Do(event fsnotify.Event) {
 		log.Error().Msgf("post messages failed, status code: %d", resp.StatusCode)
 	}
 }
+

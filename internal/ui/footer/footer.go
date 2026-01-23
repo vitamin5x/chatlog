@@ -3,8 +3,8 @@ package footer
 import (
 	"fmt"
 
-	"github.com/sjzar/chatlog/internal/ui/style"
-	"github.com/sjzar/chatlog/pkg/version"
+	"github.com/vitamin5x/chatlog/internal/ui/style"
+	"github.com/vitamin5x/chatlog/pkg/version"
 
 	"github.com/rivo/tview"
 )
@@ -66,3 +66,4 @@ func (f *Footer) SetCopyRight(text string) {
 func (f *Footer) SetHelp(text string) {
 	f.help.SetText(text)
 }
+

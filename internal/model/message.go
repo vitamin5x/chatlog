@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sjzar/chatlog/pkg/util"
+	"github.com/vitamin5x/chatlog/pkg/util"
 )
 
 var Debug = false
@@ -542,3 +542,4 @@ func (m *Message) CSV(host string) []string {
 		m.PlainTextContent(),
 	}
 }
+

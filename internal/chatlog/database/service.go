@@ -6,10 +6,10 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	"github.com/sjzar/chatlog/internal/chatlog/conf"
-	"github.com/sjzar/chatlog/internal/chatlog/webhook"
-	"github.com/sjzar/chatlog/internal/model"
-	"github.com/sjzar/chatlog/internal/wechatdb"
+	"github.com/vitamin5x/chatlog/internal/chatlog/conf"
+	"github.com/vitamin5x/chatlog/internal/chatlog/webhook"
+	"github.com/vitamin5x/chatlog/internal/model"
+	"github.com/vitamin5x/chatlog/internal/wechatdb"
 )
 
 const (
@@ -137,3 +137,4 @@ func (s *Service) Close() {
 		s.webhookCancel = nil
 	}
 }
+

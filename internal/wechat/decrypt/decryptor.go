@@ -4,9 +4,9 @@ import (
 	"context"
 	"io"
 
-	"github.com/sjzar/chatlog/internal/errors"
-	"github.com/sjzar/chatlog/internal/wechat/decrypt/darwin"
-	"github.com/sjzar/chatlog/internal/wechat/decrypt/windows"
+	"github.com/vitamin5x/chatlog/internal/errors"
+	"github.com/vitamin5x/chatlog/internal/wechat/decrypt/darwin"
+	"github.com/vitamin5x/chatlog/internal/wechat/decrypt/windows"
 )
 
 // Decryptor 定义数据库解密的接口
@@ -46,3 +46,4 @@ func NewDecryptor(platform string, version int) (Decryptor, error) {
 		return nil, errors.PlatformUnsupported(platform, version)
 	}
 }
+

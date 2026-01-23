@@ -11,11 +11,11 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/rs/zerolog/log"
 
-	"github.com/sjzar/chatlog/internal/errors"
-	"github.com/sjzar/chatlog/internal/wechat"
-	"github.com/sjzar/chatlog/internal/wechat/decrypt"
-	"github.com/sjzar/chatlog/pkg/filemonitor"
-	"github.com/sjzar/chatlog/pkg/util"
+	"github.com/vitamin5x/chatlog/internal/errors"
+	"github.com/vitamin5x/chatlog/internal/wechat"
+	"github.com/vitamin5x/chatlog/internal/wechat/decrypt"
+	"github.com/vitamin5x/chatlog/pkg/filemonitor"
+	"github.com/vitamin5x/chatlog/pkg/util"
 )
 
 var (
@@ -220,3 +220,4 @@ func (s *Service) DecryptDBFiles() error {
 
 	return nil
 }
+

@@ -8,7 +8,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 
-	"github.com/sjzar/chatlog/internal/wechatdb/pgmigrate"
+	"github.com/vitamin5x/chatlog/internal/wechatdb/pgmigrate"
 )
 
 func init() {
@@ -45,3 +45,4 @@ var pgMigrateCmd = &cobra.Command{
 		fmt.Println(ddl)
 	},
 }
+

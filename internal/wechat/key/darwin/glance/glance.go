@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
-	"github.com/sjzar/chatlog/internal/errors"
+	"github.com/vitamin5x/chatlog/internal/errors"
 )
 
 // FIXME 按照 region 读取效率较低，512MB 内存读取耗时约 18s(darwin 24)
@@ -383,3 +383,4 @@ func (g *Glance) streamReadRegions(ctx context.Context, regions []MemRegion, mem
 
 	return nil
 }
+

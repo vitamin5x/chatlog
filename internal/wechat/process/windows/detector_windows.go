@@ -8,7 +8,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/shirou/gopsutil/v4/process"
 
-	"github.com/sjzar/chatlog/internal/wechat/model"
+	"github.com/vitamin5x/chatlog/internal/wechat/model"
 )
 
 // initializeProcessInfo 获取进程的数据目录和账户名
@@ -229,3 +229,4 @@ func extractWeChatV4AccountInfo(parts []string) (accountName, dataDir string) {
 	// 这里返回空字符串，让调用者处理
 	return "", ""
 }
+

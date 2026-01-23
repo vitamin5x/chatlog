@@ -6,13 +6,13 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/sjzar/chatlog/internal/chatlog/ctx"
-	"github.com/sjzar/chatlog/internal/ui/footer"
-	"github.com/sjzar/chatlog/internal/ui/form"
-	"github.com/sjzar/chatlog/internal/ui/help"
-	"github.com/sjzar/chatlog/internal/ui/infobar"
-	"github.com/sjzar/chatlog/internal/ui/menu"
-	"github.com/sjzar/chatlog/internal/wechat"
+	"github.com/vitamin5x/chatlog/internal/chatlog/ctx"
+	"github.com/vitamin5x/chatlog/internal/ui/footer"
+	"github.com/vitamin5x/chatlog/internal/ui/form"
+	"github.com/vitamin5x/chatlog/internal/ui/help"
+	"github.com/vitamin5x/chatlog/internal/ui/infobar"
+	"github.com/vitamin5x/chatlog/internal/ui/menu"
+	"github.com/vitamin5x/chatlog/internal/wechat"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -959,3 +959,4 @@ func (a *App) settingScanDir() {
 	a.mainPages.AddPage("submenu2", formView, true, true)
 	a.SetFocus(formView)
 }
+

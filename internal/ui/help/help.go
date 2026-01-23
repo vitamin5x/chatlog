@@ -3,7 +3,7 @@ package help
 import (
 	"fmt"
 
-	"github.com/sjzar/chatlog/internal/ui/style"
+	"github.com/vitamin5x/chatlog/internal/ui/style"
 
 	"github.com/rivo/tview"
 )
@@ -87,3 +87,4 @@ func New() *Help {
 
 	return help
 }
+

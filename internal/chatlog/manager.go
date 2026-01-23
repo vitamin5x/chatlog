@@ -1,6 +1,6 @@
 package chatlog
 
-import iwechat "github.com/sjzar/chatlog/internal/wechat"
+import iwechat "github.com/vitamin5x/chatlog/internal/wechat"
 
 type Manager interface {
 	Run(configPath string) error
@@ -41,3 +41,4 @@ func New(mangerType MangerType) Manager {
 		return nil
 	}
 }
+

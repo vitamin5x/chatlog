@@ -7,9 +7,9 @@ import (
 	"github.com/fsnotify/fsnotify"
 	_ "github.com/mattn/go-sqlite3"
 
-	"github.com/sjzar/chatlog/internal/model"
-	"github.com/sjzar/chatlog/internal/wechatdb/datasource"
-	"github.com/sjzar/chatlog/internal/wechatdb/repository"
+	"github.com/vitamin5x/chatlog/internal/model"
+	"github.com/vitamin5x/chatlog/internal/wechatdb/datasource"
+	"github.com/vitamin5x/chatlog/internal/wechatdb/repository"
 )
 
 type DB struct {
@@ -136,3 +136,4 @@ func (w *DB) GetMedia(_type string, key string) (*model.Media, error) {
 func (w *DB) SetCallback(group string, callback func(event fsnotify.Event) error) error {
 	return w.ds.SetCallback(group, callback)
 }
+

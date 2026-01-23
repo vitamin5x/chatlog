@@ -9,10 +9,10 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/rs/zerolog/log"
 
-	"github.com/sjzar/chatlog/internal/chatlog/conf"
-	"github.com/sjzar/chatlog/internal/chatlog/database"
-	"github.com/sjzar/chatlog/internal/errors"
-	"github.com/sjzar/chatlog/internal/wechat"
+	"github.com/vitamin5x/chatlog/internal/chatlog/conf"
+	"github.com/vitamin5x/chatlog/internal/chatlog/database"
+	"github.com/vitamin5x/chatlog/internal/errors"
+	"github.com/vitamin5x/chatlog/internal/wechat"
 )
 
 type Service struct {
@@ -120,3 +120,4 @@ func (s *Service) Stop() error {
 func (s *Service) GetRouter() *gin.Engine {
 	return s.router
 }
+

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/sjzar/chatlog/internal/ui/style"
+	"github.com/vitamin5x/chatlog/internal/ui/style"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -230,3 +230,4 @@ func EmptyBoxSpace(bgColor tcell.Color) *tview.Box {
 
 	return box
 }
+

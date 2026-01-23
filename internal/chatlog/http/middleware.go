@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/sjzar/chatlog/internal/chatlog/database"
+	"github.com/vitamin5x/chatlog/internal/chatlog/database"
 )
 
 func corsMiddleware() gin.HandlerFunc {
@@ -43,3 +43,4 @@ func (s *Service) checkDBStateMiddleware() gin.HandlerFunc {
 		c.Next()
 	}
 }
+

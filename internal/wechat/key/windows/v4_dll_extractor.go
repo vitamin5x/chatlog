@@ -14,10 +14,10 @@ import (
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sys/windows"
 
-	"github.com/sjzar/chatlog/internal/errors"
-	"github.com/sjzar/chatlog/internal/wechat/decrypt"
-	"github.com/sjzar/chatlog/internal/wechat/model"
-	"github.com/sjzar/chatlog/pkg/util"
+	"github.com/vitamin5x/chatlog/internal/errors"
+	"github.com/vitamin5x/chatlog/internal/wechat/decrypt"
+	"github.com/vitamin5x/chatlog/internal/wechat/model"
+	"github.com/vitamin5x/chatlog/pkg/util"
 )
 
 // DllExport 定义DLL导出函数类型
@@ -417,3 +417,4 @@ func (e *WxKeyDllExtractor) pollKeyData(keyBuf []byte) bool {
 
 	return true
 }
+

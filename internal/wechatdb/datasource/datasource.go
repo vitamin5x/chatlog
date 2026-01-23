@@ -6,11 +6,11 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 
-	"github.com/sjzar/chatlog/internal/errors"
-	"github.com/sjzar/chatlog/internal/model"
-	"github.com/sjzar/chatlog/internal/wechatdb/datasource/darwinv3"
-	v4 "github.com/sjzar/chatlog/internal/wechatdb/datasource/v4"
-	"github.com/sjzar/chatlog/internal/wechatdb/datasource/windowsv3"
+	"github.com/vitamin5x/chatlog/internal/errors"
+	"github.com/vitamin5x/chatlog/internal/model"
+	"github.com/vitamin5x/chatlog/internal/wechatdb/datasource/darwinv3"
+	v4 "github.com/vitamin5x/chatlog/internal/wechatdb/datasource/v4"
+	"github.com/vitamin5x/chatlog/internal/wechatdb/datasource/windowsv3"
 )
 
 type DataSource interface {
@@ -50,3 +50,4 @@ func New(path string, platform string, version int) (DataSource, error) {
 		return nil, errors.PlatformUnsupported(platform, version)
 	}
 }
+

@@ -10,16 +10,16 @@ import (
 	"strings"
 
 	"github.com/rs/zerolog/log"
-	"github.com/sjzar/chatlog/internal/chatlog/conf"
-	"github.com/sjzar/chatlog/internal/chatlog/ctx"
-	"github.com/sjzar/chatlog/internal/chatlog/database"
-	"github.com/sjzar/chatlog/internal/chatlog/http"
-	"github.com/sjzar/chatlog/internal/chatlog/wechat"
-	iwechat "github.com/sjzar/chatlog/internal/wechat"
-	"github.com/sjzar/chatlog/internal/wechat/process/windows"
-	"github.com/sjzar/chatlog/pkg/config"
-	"github.com/sjzar/chatlog/pkg/util"
-	"github.com/sjzar/chatlog/pkg/util/dat2img"
+	"github.com/vitamin5x/chatlog/internal/chatlog/conf"
+	"github.com/vitamin5x/chatlog/internal/chatlog/ctx"
+	"github.com/vitamin5x/chatlog/internal/chatlog/database"
+	"github.com/vitamin5x/chatlog/internal/chatlog/http"
+	"github.com/vitamin5x/chatlog/internal/chatlog/wechat"
+	iwechat "github.com/vitamin5x/chatlog/internal/wechat"
+	"github.com/vitamin5x/chatlog/internal/wechat/process/windows"
+	"github.com/vitamin5x/chatlog/pkg/config"
+	"github.com/vitamin5x/chatlog/pkg/util"
+	"github.com/vitamin5x/chatlog/pkg/util/dat2img"
 )
 
 // CliManager 管理聊天日志应用
@@ -667,3 +667,4 @@ func (m *CliManager) Decrypt(configPath string, cmdConf map[string]any) error {
 
 	return nil
 }
+

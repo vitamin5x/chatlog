@@ -3,7 +3,7 @@ package windows
 import (
 	"context"
 
-	"github.com/sjzar/chatlog/internal/wechat/decrypt"
+	"github.com/vitamin5x/chatlog/internal/wechat/decrypt"
 )
 
 type V4Extractor struct {
@@ -22,3 +22,4 @@ func (e *V4Extractor) SearchKey(ctx context.Context, memory []byte) (string, boo
 func (e *V4Extractor) SetValidate(validator *decrypt.Validator) {
 	e.validator = validator
 }
+

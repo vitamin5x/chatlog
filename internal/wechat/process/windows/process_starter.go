@@ -6,7 +6,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	"github.com/sjzar/chatlog/internal/wechat/model"
+	"github.com/vitamin5x/chatlog/internal/wechat/model"
 )
 
 // StartWeChat 启动微信
@@ -67,3 +67,4 @@ func WaitForWeChatProcess(timeoutMs int) (*model.Process, error) {
 	log.Debug().Msg("等待微信进程启动超时")
 	return nil, nil
 }
+

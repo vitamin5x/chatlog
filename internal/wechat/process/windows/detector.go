@@ -8,8 +8,8 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/shirou/gopsutil/v4/process"
 
-	"github.com/sjzar/chatlog/internal/wechat/model"
-	"github.com/sjzar/chatlog/pkg/appver"
+	"github.com/vitamin5x/chatlog/internal/wechat/model"
+	"github.com/vitamin5x/chatlog/pkg/appver"
 )
 
 const (
@@ -132,3 +132,4 @@ func (d *Detector) getProcessInfo(p *process.Process) (*model.Process, error) {
 
 	return procInfo, nil
 }
+
