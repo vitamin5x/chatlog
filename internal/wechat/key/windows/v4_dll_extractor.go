@@ -81,13 +81,23 @@ func (e *WxKeyDllExtractor) loadDLL() error {
 	// 系统环境变量指定的路径
 	if dllDir := os.Getenv("CHATLOG_DLL_DIR"); dllDir != "" {
 		dllPaths = append(dllPaths, filepath.Join(dllDir, "wx_key.dll"))
+		log.Info().Str("envPath", dllDir).Msg("从环境变量CHATLOG_DLL_DIR获取到DLL路径")
 	}
 
 	var lastErr error
+	var failedPaths []string
 	log.Info().Msgf("正在尝试从%d个路径加载wx_key.dll", len(dllPaths))
 
 	for _, path := range dllPaths {
 		log.Info().Str("path", path).Msg("尝试加载wx_key.dll")
+
+		// 检查文件是否存在
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			log.Debug().Str("path", path).Msg("wx_key.dll文件不存在")
+			failedPaths = append(failedPaths, path+": 文件不存在")
+			continue
+		}
+
 		handle, err := windows.LoadLibrary(path)
 		if err == nil {
 			e.dllHandle = handle
@@ -95,17 +105,30 @@ func (e *WxKeyDllExtractor) loadDLL() error {
 			break
 		}
 		log.Debug().Str("path", path).Err(err).Msg("无法加载wx_key.dll")
+		failedPaths = append(failedPaths, path+": "+err.Error())
 		lastErr = err
 	}
 
 	if e.dllHandle == 0 {
 		log.Error().Err(lastErr).Msgf("无法从所有%d个路径加载wx_key.dll", len(dllPaths))
+		log.Error().Msg("失败的路径列表：")
+		for _, fp := range failedPaths {
+			log.Error().Msgf("  - %s", fp)
+		}
+		log.Error().Msg("请确保wx_key.dll位于以下位置之一：")
+		log.Error().Msg("  1. 可执行文件所在目录")
+		log.Error().Msg("  2. 可执行文件所在目录的assets子目录")
+		log.Error().Msg("  3. 用户主目录下的chatlog目录")
+		log.Error().Msg("  4. 通过CHATLOG_DLL_DIR环境变量指定的目录")
 		return errors.DllLoadFailed(fmt.Errorf("无法从所有%d个路径加载wx_key.dll: %w", len(dllPaths), lastErr))
 	}
 
 	// 获取DLL导出函数
 	getProc := func(name string) uintptr {
-		addr, _ := windows.GetProcAddress(e.dllHandle, name)
+		addr, err := windows.GetProcAddress(e.dllHandle, name)
+		if err != nil {
+			log.Debug().Str("func", name).Err(err).Msg("无法获取DLL导出函数")
+		}
 		return addr
 	}
 
@@ -122,13 +145,27 @@ func (e *WxKeyDllExtractor) loadDLL() error {
 		"CleanupHook":    e.cleanupHookPtr,
 	}
 
+	missingFuncs := []string{}
 	for name, addr := range requiredFuncs {
 		if addr == 0 {
-			windows.FreeLibrary(e.dllHandle)
-			e.dllHandle = 0
-			return errors.DllProcNotFound(name, nil)
+			missingFuncs = append(missingFuncs, name)
 		}
 	}
+
+	if len(missingFuncs) > 0 {
+		windows.FreeLibrary(e.dllHandle)
+		e.dllHandle = 0
+		log.Error().Strs("missingFuncs", missingFuncs).Msg("DLL缺少必要的导出函数")
+		return errors.DllProcNotFound(strings.Join(missingFuncs, ", "), nil)
+	}
+
+	// 记录成功获取的函数
+	log.Info().Msg("成功获取DLL导出函数：")
+	log.Info().Msgf("  - InitializeHook: %v", e.initializeHookPtr != 0)
+	log.Info().Msgf("  - PollKeyData: %v", e.pollKeyDataPtr != 0)
+	log.Info().Msgf("  - GetStatusMessage: %v", e.getStatusMsgPtr != 0)
+	log.Info().Msgf("  - CleanupHook: %v", e.cleanupHookPtr != 0)
+	log.Info().Msgf("  - GetLastErrorMsg: %v", e.getLastErrMsgPtr != 0)
 
 	return nil
 }
@@ -205,8 +242,13 @@ func (e *WxKeyDllExtractor) Extract(ctx context.Context, proc *model.Process) (s
 	}()
 
 	// 初始化Hook
+	log.Info().Uint32("pid", proc.PID).Msg("开始初始化Hook")
 	if !e.initializeHook(proc.PID) {
-		return "", "", errors.DllInitFailed(fmt.Errorf("%s", e.getLastErrorMsg()))
+		errMsg := e.getLastErrorMsg()
+		if !util.IsElevated() {
+			errMsg += " (请尝试以管理员权限运行)"
+		}
+		return "", "", errors.DllInitFailed(fmt.Errorf("%s", errMsg))
 	}
 	defer e.cleanupHook()
 
@@ -241,11 +283,33 @@ func (e *WxKeyDllExtractor) getStatusMessages() []struct {
 // initializeHook 初始化Hook
 func (e *WxKeyDllExtractor) initializeHook(pid uint32) bool {
 	if e.dllHandle == 0 || e.initializeHookPtr == 0 {
+		log.Error().Msg("DLL未加载或InitializeHook函数不存在")
 		return false
 	}
 
+	log.Info().Uint32("pid", pid).Msg("调用InitializeHook")
 	ret, _, _ := syscall.SyscallN(e.initializeHookPtr, uintptr(pid))
-	return ret != 0
+	if ret == 0 {
+		// 获取详细的错误信息
+		errMsg := e.getLastErrorMsg()
+		log.Error().Str("errMsg", errMsg).Msg("Hook初始化失败")
+		return false
+	}
+
+	// 获取Hook初始化后的状态信息
+	statusMessages := e.getStatusMessages()
+	for _, msg := range statusMessages {
+		logLevel := log.Info()
+		if msg.Level == 2 {
+			logLevel = log.Error()
+		} else if msg.Level == 1 {
+			logLevel = log.Warn()
+		}
+		logLevel.Str("dll_msg", msg.Message).Int("level", msg.Level).Msg("Hook初始化状态信息")
+	}
+
+	log.Info().Msg("Hook初始化成功")
+	return true
 }
 
 // cleanupHook 清理Hook资源
@@ -263,13 +327,247 @@ func (e *WxKeyDllExtractor) cleanup() {
 	e.cleanupHook()
 }
 
+// 窗口枚举回调函数类型
+var enumWindowsProc uintptr
+
+// _ChildWindowInfo 子窗口信息
+
+type _ChildWindowInfo struct {
+	hwnd      int
+	title     string
+	className string
+}
+
+// user32.dll 函数
+var (
+	user32                  = syscall.NewLazyDLL("user32.dll")
+	procIsWindowVisible     = user32.NewProc("IsWindowVisible")
+	procGetWindowTextLength = user32.NewProc("GetWindowTextLengthW")
+	procGetWindowText       = user32.NewProc("GetWindowTextW")
+	procGetClassName        = user32.NewProc("GetClassNameW")
+)
+
+// IsWindowVisible 检查窗口是否可见
+func IsWindowVisible(hwnd windows.HWND) bool {
+	ret, _, _ := syscall.SyscallN(procIsWindowVisible.Addr(), uintptr(hwnd))
+	return ret != 0
+}
+
+// GetWindowTextLength 获取窗口文本长度
+func GetWindowTextLength(hwnd windows.HWND) int {
+	ret, _, _ := syscall.SyscallN(procGetWindowTextLength.Addr(), uintptr(hwnd))
+	return int(ret)
+}
+
+// GetWindowText 获取窗口文本
+func GetWindowText(hwnd windows.HWND, lpString []uint16, nMaxCount int) int {
+	ret, _, _ := syscall.SyscallN(procGetWindowText.Addr(), uintptr(hwnd), uintptr(unsafe.Pointer(&lpString[0])), uintptr(nMaxCount))
+	return int(ret)
+}
+
+// GetClassName 获取窗口类名
+func GetClassName(hwnd windows.HWND, lpClassName []uint16, nMaxCount int) int {
+	ret, _, _ := syscall.SyscallN(procGetClassName.Addr(), uintptr(hwnd), uintptr(unsafe.Pointer(&lpClassName[0])), uintptr(nMaxCount))
+	return int(ret)
+}
+
+// findWechatWindowHandles 查找微信窗口句柄
+func findWechatWindowHandles(pid uint32) []int {
+	var handles []int
+
+	// 定义窗口枚举回调函数
+	enumWindowsProc = windows.NewCallback(func(hwnd windows.HWND, lParam uintptr) uintptr {
+		var windowPid uint32
+		windows.GetWindowThreadProcessId(hwnd, &windowPid)
+		if windowPid == pid {
+			// 检查窗口是否可见
+			if !IsWindowVisible(hwnd) {
+				return 1 // 继续枚举
+			}
+
+			// 获取窗口文本长度
+			titleLen := GetWindowTextLength(hwnd)
+			if titleLen == 0 {
+				return 1 // 继续枚举
+			}
+
+			// 获取窗口文本
+			titleBuffer := make([]uint16, titleLen+1)
+			GetWindowText(hwnd, titleBuffer, titleLen+1)
+			title := windows.UTF16ToString(titleBuffer)
+
+			// 获取窗口类名
+			classNameBuffer := make([]uint16, 256)
+			classNameLen := GetClassName(hwnd, classNameBuffer, 256)
+			className := ""
+			if classNameLen > 0 {
+				className = windows.UTF16ToString(classNameBuffer)
+			}
+
+			// 检查是否是微信窗口
+			if strings.Contains(title, "微信") || strings.Contains(title, "Weixin") || strings.Contains(className, "WeChat") || strings.Contains(className, "Weixin") {
+				handles = append(handles, int(hwnd))
+			}
+		}
+		return 1 // 继续枚举
+	})
+
+	// 枚举所有顶层窗口
+	windows.EnumWindows(enumWindowsProc, unsafe.Pointer(nil))
+
+	return handles
+}
+
+// collectChildWindowInfos 收集子窗口信息
+func collectChildWindowInfos(hwnd int) []_ChildWindowInfo {
+	var children []_ChildWindowInfo
+
+	// 定义子窗口枚举回调函数
+	enumChildProc := windows.NewCallback(func(childHwnd windows.HWND, lParam uintptr) uintptr {
+		// 获取窗口文本长度
+		titleLen := GetWindowTextLength(childHwnd)
+		title := ""
+		if titleLen > 0 {
+			titleBuffer := make([]uint16, titleLen+1)
+			GetWindowText(childHwnd, titleBuffer, titleLen+1)
+			title = windows.UTF16ToString(titleBuffer)
+		}
+
+		// 获取窗口类名
+		classNameBuffer := make([]uint16, 256)
+		classNameLen := GetClassName(childHwnd, classNameBuffer, 256)
+		className := ""
+		if classNameLen > 0 {
+			className = windows.UTF16ToString(classNameBuffer)
+		}
+
+		children = append(children, _ChildWindowInfo{
+			hwnd:      int(childHwnd),
+			title:     title,
+			className: className,
+		})
+
+		return 1 // 继续枚举
+	})
+
+	// 枚举子窗口
+	windows.EnumChildWindows(windows.HWND(hwnd), enumChildProc, unsafe.Pointer(nil))
+
+	return children
+}
+
+// checkWindowReadiness 检查窗口是否就绪
+func checkWindowReadiness(children []_ChildWindowInfo) bool {
+	// 检查是否有足够的子窗口
+	if len(children) < 2 {
+		return false
+	}
+
+	// 关键组件文本 - 与Flutter版本检测逻辑保持一致
+	readyComponentTexts := []string{"微信", "Weixin", "WeChat"}
+	// 关键组件类名标记
+	readyComponentClassMarkers := []string{"WeChat", "Weixin", "TXGuiFoundation"}
+
+	// 统计找到的关键组件
+	foundComponents := 0
+
+	for _, child := range children {
+		// 检查标题
+		if child.title != "" {
+			for _, marker := range readyComponentTexts {
+				if strings.Contains(child.title, marker) {
+					foundComponents++
+					if foundComponents >= 1 {
+						return true
+					}
+					break
+				}
+			}
+		}
+
+		// 检查类名
+		if child.className != "" {
+			for _, marker := range readyComponentClassMarkers {
+				if strings.Contains(child.className, marker) {
+					foundComponents++
+					if foundComponents >= 1 {
+						return true
+					}
+					break
+				}
+			}
+		}
+	}
+
+	// 备用检查：如果有足够多的子窗口，也认为窗口已就绪
+	if len(children) >= 5 {
+		return true
+	}
+
+	// 最终检查：如果找到至少一个关键组件，且子窗口数量足够
+	if foundComponents >= 1 && len(children) >= 2 {
+		return true
+	}
+
+	return false
+}
+
+// waitForWeChatWindowComponents 等待微信窗口组件加载完成
+func waitForWeChatWindowComponents(pid uint32, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	attemptCount := 0
+	lastFoundHandles := 0
+	lastChildCount := 0
+	maxAttempts := 100 // 设置最大尝试次数，避免无限循环
+
+	for time.Now().Before(deadline) && attemptCount < maxAttempts {
+		attemptCount++
+		log.Info().Uint32("pid", pid).Int("attempt", attemptCount).Msg("检测微信窗口组件")
+
+		// 查找微信窗口句柄
+		handles := findWechatWindowHandles(pid)
+		if len(handles) == 0 {
+			log.Warn().Msg("未找到微信窗口句柄")
+			time.Sleep(300 * time.Millisecond) // 缩短等待时间，提高检测频率
+			continue
+		}
+
+		if len(handles) != lastFoundHandles {
+			log.Info().Int("handles", len(handles)).Msg("找到微信窗口句柄")
+			lastFoundHandles = len(handles)
+		}
+
+		for _, handle := range handles {
+			// 收集子窗口信息
+			children := collectChildWindowInfos(handle)
+
+			if len(children) != lastChildCount {
+				log.Debug().Int("handle", handle).Int("childCount", len(children)).Msg("收集到子窗口信息")
+				lastChildCount = len(children)
+			}
+
+			// 检查是否有就绪组件
+			if checkWindowReadiness(children) {
+				log.Info().Int("handle", handle).Int("childCount", len(children)).Msg("微信界面组件已加载完毕")
+				return nil
+			}
+		}
+
+		time.Sleep(300 * time.Millisecond) // 缩短等待时间，提高检测频率
+	}
+
+	log.Warn().Msg("等待微信界面组件超时，但窗口可能已就绪，将继续执行Hook安装")
+	return nil
+}
+
 // pollKeys 轮询获取密钥
 func (e *WxKeyDllExtractor) pollKeys(ctx context.Context, proc *model.Process, validatorDataDir string) (string, string, error) {
 	var dataKey string
 	keyBuf := make([]byte, 129) // 增加缓冲区大小到128位 + 结束符，与参考文档保持一致
 	pollInterval := 100 * time.Millisecond
-	timeout := time.After(60 * time.Second) // 增加超时时间到60秒
+	timeout := time.After(10 * time.Second) // 减少超时时间到10秒
 	lastHeartbeat := time.Now()
+	lastStatusCheck := time.Now()
 
 	log.Info().Msg(strings.Repeat("=", 60))
 	log.Info().Msg("🔑 Hook已成功安装到微信进程！")
@@ -279,9 +577,9 @@ func (e *WxKeyDllExtractor) pollKeys(ctx context.Context, proc *model.Process, v
 	log.Info().Msg("   3. 查看朋友圈、公众号文章或小程序")
 	log.Info().Msg("   4. 点击微信界面的任意功能按钮")
 	log.Info().Msg("")
-	log.Info().Msg("⏱️  正在等待密钥...（超时时间：60秒）")
+	log.Info().Msg("⏱️  正在等待密钥...（超时时间：10秒）")
 	log.Info().Msg("   - 请确保微信窗口处于激活状态")
-	log.Info().Msg("   - 如果超过60秒仍未获取到密钥，请重试")
+	log.Info().Msg("   - 如果超过10秒仍未获取到密钥，请重试")
 	log.Info().Msg(strings.Repeat("=", 60))
 
 	for {
@@ -291,7 +589,7 @@ func (e *WxKeyDllExtractor) pollKeys(ctx context.Context, proc *model.Process, v
 			return "", "", ctx.Err()
 		case <-timeout:
 			log.Error().Msg("密钥获取超时！(DLL POLL TIMEOUT)")
-			log.Error().Msg("💡 此错误通常意味着 Hook 已经安装，但在 60 秒内没有捕捉到任何有效的解密动作。")
+			log.Error().Msg("💡 此错误通常意味着 Hook 已经安装，但在 10 秒内没有捕捉到任何有效的解密动作。")
 			log.Error().Msg("💡 如果你已经进行了聊天操作但仍然超时，请尝试在微信中切换账号或重新登录。")
 
 			if !util.IsElevated() {
@@ -301,7 +599,11 @@ func (e *WxKeyDllExtractor) pollKeys(ctx context.Context, proc *model.Process, v
 			// 在超时前最后获取一次状态信息
 			lastMsgs := e.getStatusMessages()
 			for _, m := range lastMsgs {
-				log.Info().Str("last_msg", m.Message).Int("level", m.Level).Msg("DLL 最后的内部状态报告")
+				logLevel := log.Info()
+				if m.Level == 2 {
+					logLevel = log.Error()
+				}
+				logLevel.Str("last_msg", m.Message).Int("level", m.Level).Msg("DLL 最后的内部状态报告")
 			}
 			return "", "", errors.ErrDllPollTimeout
 		case <-time.After(pollInterval):
@@ -311,14 +613,52 @@ func (e *WxKeyDllExtractor) pollKeys(ctx context.Context, proc *model.Process, v
 				logLevel := log.Info()
 				if msg.Level == 2 {
 					logLevel = log.Error()
+				} else if msg.Level == 1 {
+					logLevel = log.Warn()
 				}
 				logLevel.Str("dll_msg", msg.Message).Int("level", msg.Level).Msg("来自 wx_key.dll 的消息")
+
+				// 根据状态信息提供更详细的用户操作指导
+				if strings.Contains(msg.Message, "等待微信组件加载") {
+					log.Info().Msg("💡 微信正在加载组件，请稍候...")
+				} else if strings.Contains(msg.Message, "请执行聊天操作") {
+					log.Info().Msg("💡 请在微信中执行聊天操作，例如打开聊天对话框或发送消息")
+				} else if strings.Contains(msg.Message, "Hook 安装成功") {
+					log.Info().Msg("✅ Hook 安装成功，正在等待密钥触发...")
+				} else if strings.Contains(msg.Message, "Hook 安装失败") {
+					log.Error().Msg("❌ Hook 安装失败，请重新尝试")
+				}
 			}
 
 			// 每10秒打印一次心跳
 			if time.Since(lastHeartbeat) > 10*time.Second {
 				log.Info().Msg("⏱️  正在持续监听密钥触发操作...")
+				log.Info().Msg("💡 如果你还没有在微信中执行操作，请立即执行以下操作之一：")
+				log.Info().Msg("   1. 打开任意聊天对话框（最常用的方法）")
+				log.Info().Msg("   2. 发送或接收一条新消息")
+				log.Info().Msg("   3. 查看朋友圈、公众号文章或小程序")
 				lastHeartbeat = time.Now()
+			}
+
+			// 每30秒获取一次更详细的状态信息
+			if time.Since(lastStatusCheck) > 30*time.Second {
+				log.Info().Msg("🔍 执行详细状态检查...")
+				detailedMsgs := e.getStatusMessages()
+				if len(detailedMsgs) == 0 {
+					log.Info().Msg("📋 没有新的状态消息")
+				} else {
+					log.Info().Msg("📋 详细状态报告：")
+					for _, m := range detailedMsgs {
+						logLevel := log.Info()
+						if m.Level == 2 {
+							logLevel = log.Error()
+						} else if m.Level == 1 {
+							logLevel = log.Warn()
+						}
+						logLevel.Str("message", m.Message).Int("level", m.Level).Msg("状态信息")
+					}
+				}
+				lastStatusCheck = time.Now()
 			}
 
 			// 轮询获取密钥
@@ -402,10 +742,11 @@ func (e *WxKeyDllExtractor) pollKeyData(keyBuf []byte) bool {
 		return false
 	}
 
-	// 调用DLL函数获取密钥 (通常只接受缓冲区指针)
+	// 调用DLL函数获取密钥 - 与Flutter版本保持一致，传递缓冲区大小
 	ret, _, err := syscall.SyscallN(
 		e.pollKeyDataPtr,
 		uintptr(unsafe.Pointer(&keyBuf[0])),
+		uintptr(65), // 传递缓冲区大小，与Flutter版本一致
 	)
 
 	// 检查返回值
@@ -417,4 +758,3 @@ func (e *WxKeyDllExtractor) pollKeyData(keyBuf []byte) bool {
 
 	return true
 }
-
