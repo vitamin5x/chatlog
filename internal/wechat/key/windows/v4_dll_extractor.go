@@ -17,6 +17,7 @@ import (
 	"github.com/vitamin5x/chatlog/internal/errors"
 	"github.com/vitamin5x/chatlog/internal/wechat/decrypt"
 	"github.com/vitamin5x/chatlog/internal/wechat/model"
+	processwin "github.com/vitamin5x/chatlog/internal/wechat/process/windows"
 	"github.com/vitamin5x/chatlog/pkg/util"
 )
 
@@ -757,4 +758,65 @@ func (e *WxKeyDllExtractor) pollKeyData(keyBuf []byte) bool {
 	}
 
 	return true
+}
+
+// DirectStartWeChatAndGetKey 直接启动微信并获取密钥
+func (e *WxKeyDllExtractor) DirectStartWeChatAndGetKey(ctx context.Context) (string, error) {
+	// 自动查找微信安装路径
+	wechatPath := processwin.FindWeChatInstallPath()
+	if wechatPath == "" {
+		return "", fmt.Errorf("未找到微信安装路径，请先安装微信")
+	}
+
+	// 关闭所有微信进程，确保完全终止
+	log.Info().Msg("正在关闭所有微信进程...")
+	if err := processwin.KillWeChatProcesses(); err != nil {
+		log.Warn().Err(err).Msg("关闭微信进程时出现警告")
+	}
+
+	// 启动微信
+	log.Info().Msg("正在启动新的微信实例...")
+	if err := processwin.StartWeChat(wechatPath); err != nil {
+		return "", fmt.Errorf("启动微信失败: %w", err)
+	}
+
+	// 等待微信启动并检测到进程
+	log.Info().Msg("等待微信进程启动...")
+	var proc *model.Process
+	startTime := time.Now()
+	timeout := 30 * time.Second
+
+	for time.Since(startTime) < timeout {
+		// 使用进程检测器查找微信进程
+		detector := processwin.NewDetector()
+		processes, err := detector.FindProcesses()
+		if err != nil {
+			log.Err(err).Msg("查找微信进程失败")
+			time.Sleep(1 * time.Second)
+			continue
+		}
+
+		if len(processes) > 0 {
+			proc = processes[0]
+			log.Info().Uint32("pid", proc.PID).Msg("检测到微信进程")
+			break
+		}
+
+		// 等待1秒后重试
+		time.Sleep(1 * time.Second)
+	}
+
+	if proc == nil {
+		return "", fmt.Errorf("等待微信启动超时，请手动启动微信后重试")
+	}
+
+	// 直接使用PID获取密钥
+	log.Info().Msg("直接使用PID获取密钥...")
+	dataKey, _, err := e.Extract(ctx, proc)
+	if err != nil {
+		return "", fmt.Errorf("获取密钥失败: %w", err)
+	}
+
+	log.Info().Msg("密钥获取成功！")
+	return dataKey, nil
 }

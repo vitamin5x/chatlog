@@ -3,6 +3,7 @@
 package chatlog
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -15,6 +16,8 @@ import (
 	syswindows "golang.org/x/sys/windows"
 
 	iwechat "github.com/vitamin5x/chatlog/internal/wechat"
+	"github.com/vitamin5x/chatlog/internal/wechat/decrypt"
+	keyswindows "github.com/vitamin5x/chatlog/internal/wechat/key/windows"
 	"github.com/vitamin5x/chatlog/internal/wechat/process/windows"
 	"github.com/vitamin5x/chatlog/pkg/util"
 )
@@ -33,6 +36,118 @@ const autoWeChatTimeout = 70 * time.Second
 
 // autoGetDataKeyOnWindows 自动重启微信获取密钥
 func (m *CliManager) autoGetDataKeyOnWindows() error {
+	// 检查是否为Windows V4版本
+	if m.ctx.Version == 4 {
+		// 使用新的DirectStartWeChatAndGetKey方法
+		log.Info().Msg("使用新的DirectStartWeChatAndGetKey方法获取密钥...")
+
+		// 创建WxKeyDllExtractor实例
+		extractor := keyswindows.NewWxKeyDllExtractor()
+
+		// 获取数据目录用于验证
+		var validatorDataDir string
+		if m.ctx.Current != nil && m.ctx.Current.DataDir != "" {
+			validatorDataDir = m.ctx.Current.DataDir
+		} else if m.ctx.DataDir != "" {
+			validatorDataDir = m.ctx.DataDir
+		}
+
+		// 设置验证器
+		if validatorDataDir != "" {
+			validator, err := decrypt.NewValidator("windows", 4, validatorDataDir)
+			if err == nil {
+				extractor.SetValidate(validator)
+				log.Info().Str("dataDir", validatorDataDir).Msg("设置验证器成功")
+			}
+		}
+
+		// 直接启动微信并获取密钥
+		dataKey, err := extractor.DirectStartWeChatAndGetKey(context.Background())
+		if err != nil {
+			log.Error().Err(err).Msg("使用新方法获取密钥失败")
+			// 失败后回退到旧方法
+			return m.oldAutoGetDataKeyOnWindows()
+		}
+
+		log.Info().Msg("使用新方法获取密钥成功！")
+
+		// 更新上下文
+		m.ctx.DataKey = dataKey
+
+		// 尝试获取账号信息
+		if m.ctx.Current == nil {
+			// 刷新微信实例列表
+			m.ctx.WeChatInstances = m.wechat.GetWeChatInstances()
+			if len(m.ctx.WeChatInstances) >= 1 {
+				m.ctx.SwitchCurrent(m.ctx.WeChatInstances[0])
+			}
+		}
+
+		// 尝试修复 unknown_wechat 账号名
+		if m.ctx.Current != nil {
+			currentDataDir := m.ctx.Current.DataDir
+			if (m.ctx.Account == "" || m.ctx.Account == "unknown_wechat") && currentDataDir != "" {
+				// 尝试从数据目录获取账号名
+				base := filepath.Base(currentDataDir)
+				if base == "Msg" {
+					base = filepath.Base(filepath.Dir(currentDataDir))
+				}
+
+				if base != "" && base != "." && base != "xwechat_files" {
+					log.Info().Str("oldAccount", m.ctx.Account).Str("newAccount", base).Msg("从数据目录推断出账号名称")
+					m.ctx.Current.Name = base
+					m.ctx.Account = base
+					m.ctx.DataDir = currentDataDir
+
+					// 检查是否有历史记录并加载
+					if history, ok := m.ctx.History[base]; ok {
+						log.Info().Str("account", base).Msg("找到修复后账号的历史记录，加载配置")
+						if history.WorkDir != "" {
+							m.ctx.WorkDir = history.WorkDir
+							log.Info().Str("workDir", m.ctx.WorkDir).Msg("已恢复历史工作目录")
+						}
+						if m.ctx.ImgKey == "" && history.ImgKey != "" {
+							m.ctx.ImgKey = history.ImgKey
+						}
+						if m.ctx.ImageAESKey == "" && history.ImageAESKey != "" {
+							m.ctx.ImageAESKey = history.ImageAESKey
+						}
+						if m.ctx.ImageXORKey == "" && history.ImageXORKey != "" {
+							m.ctx.ImageXORKey = history.ImageXORKey
+						}
+					}
+				}
+			}
+		}
+
+		// 确保WorkDir已设置，或修复包含 "unknown_wechat" 的错误路径
+		if m.ctx.WorkDir == "" || strings.Contains(m.ctx.WorkDir, "unknown_wechat") {
+			// 只有当账号名有效时才更新，避免再次设置为 unknown_wechat
+			if m.ctx.Account != "" && m.ctx.Account != "unknown_wechat" && !strings.Contains(m.ctx.Account, "unknown_wechat") {
+				newWorkDir := util.DefaultWorkDir(m.ctx.Account)
+				// 如果新路径确实不同，则更新
+				if newWorkDir != m.ctx.WorkDir {
+					log.Info().Str("oldWorkDir", m.ctx.WorkDir).Str("newWorkDir", newWorkDir).Msg("修复工作目录路径")
+					m.ctx.WorkDir = newWorkDir
+				}
+			} else if m.ctx.WorkDir == "" {
+				// 如果账号名仍然无效且WorkDir为空，只能先设置默认值
+				m.ctx.WorkDir = util.DefaultWorkDir(m.ctx.Account)
+				log.Info().Str("workDir", m.ctx.WorkDir).Msg("设置默认工作目录")
+			}
+		}
+
+		m.ctx.Refresh()
+		m.ctx.UpdateConfig()
+		return nil
+	}
+
+	// 非V4版本使用旧方法
+	return m.oldAutoGetDataKeyOnWindows()
+}
+
+// oldAutoGetDataKeyOnWindows 旧的自动重启微信获取密钥方法
+func (m *CliManager) oldAutoGetDataKeyOnWindows() error {
 	// 自动查找微信安装路径
 	wechatPath := windows.FindWeChatInstallPath()
 	if wechatPath == "" {
@@ -261,4 +376,3 @@ func waitForWeChatWindow(pid uint32, timeout time.Duration) error {
 	}
 	return fmt.Errorf("timeout waiting for window")
 }
-
