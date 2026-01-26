@@ -183,9 +183,12 @@ func (e *WxKeyDllExtractor) getLastErrorMsg() string {
 	}
 
 	// 根据参考，DLL返回的是UTF-8编码的指针
-	p := (*[1 << 30]byte)(unsafe.Pointer(ret))
+
+	// 安全地读取字符串，设置最大长度限制
+	const maxStrLen = 4096
+	p := (*[maxStrLen]byte)(unsafe.Pointer(ret))
 	n := 0
-	for p[n] != 0 {
+	for n < maxStrLen && p[n] != 0 {
 		n++
 	}
 

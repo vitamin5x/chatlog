@@ -46,9 +46,7 @@ func initializeProcessInfo(p *process.Process, info *model.Process) error {
 		if isMatch {
 			filePath := f.Path
 			// 移除可能的前缀
-			if strings.HasPrefix(filePath, "\\\\?\\") {
-				filePath = filePath[4:]
-			}
+			filePath = strings.TrimPrefix(filePath, "\\\\?\\")
 			log.Debug().Str("filePath", filePath).Int("version", info.Version).Msg("找到目标数据库文件")
 
 			// 规范化路径分隔符
@@ -229,4 +227,3 @@ func extractWeChatV4AccountInfo(parts []string) (accountName, dataDir string) {
 	// 这里返回空字符串，让调用者处理
 	return "", ""
 }
-
