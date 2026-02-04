@@ -1,4 +1,4 @@
-BINARY_NAME := chatlog
+BINARY_NAME := Makopilot-Wechat-Bridge
 GO := go
 ifeq ($(VERSION),)
 	VERSION := $(shell git describe --tags --always --dirty="-dev")
