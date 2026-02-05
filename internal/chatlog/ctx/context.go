@@ -82,6 +82,7 @@ func New(configPath string) (*Context, error) {
 
 func (c *Context) loadConfig() {
 	c.History = c.conf.ParseHistory()
+	c.ScanDir = c.conf.ScanDir  // 加载全局的ScanDir配置
 	c.SwitchHistory(c.conf.LastAccount)
 	c.Refresh()
 }
