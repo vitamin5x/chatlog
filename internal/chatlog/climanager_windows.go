@@ -65,8 +65,7 @@ func (m *CliManager) autoGetDataKeyOnWindows() error {
 		dataKey, err := extractor.DirectStartWeChatAndGetKey(context.Background())
 		if err != nil {
 			log.Error().Err(err).Msg("使用新方法获取密钥失败")
-			// 失败后回退到旧方法
-			return m.oldAutoGetDataKeyOnWindows()
+			return err
 		}
 
 		log.Info().Msg("使用新方法获取密钥成功！")
@@ -74,12 +73,25 @@ func (m *CliManager) autoGetDataKeyOnWindows() error {
 		// 更新上下文
 		m.ctx.DataKey = dataKey
 
+		// 同时更新 Current.Key，确保数据一致性
+		if m.ctx.Current != nil {
+			m.ctx.Current.Key = dataKey
+		}
+
 		// 尝试获取账号信息
 		if m.ctx.Current == nil {
 			// 刷新微信实例列表
 			m.ctx.WeChatInstances = m.wechat.GetWeChatInstances()
 			if len(m.ctx.WeChatInstances) >= 1 {
+				// 先保存获取到的密钥
+				tempDataKey := dataKey
+				// 切换到第一个微信实例
 				m.ctx.SwitchCurrent(m.ctx.WeChatInstances[0])
+				// 重新设置密钥，确保不被清除
+				m.ctx.DataKey = tempDataKey
+				if m.ctx.Current != nil {
+					m.ctx.Current.Key = tempDataKey
+				}
 			}
 		}
 
@@ -260,6 +272,12 @@ func (m *CliManager) oldAutoGetDataKeyOnWindows() error {
 		dataKey, err = m.wechat.GetDataKey(m.ctx.Current)
 		if err == nil && dataKey != "" {
 			log.Info().Msg("密钥获取成功")
+			// 更新上下文
+			m.ctx.DataKey = dataKey
+			// 同时更新 Current.Key，确保数据一致性
+			if m.ctx.Current != nil {
+				m.ctx.Current.Key = dataKey
+			}
 			break
 		} else if err != nil {
 			log.Warn().Err(err).Msg("获取密钥尝试失败")
